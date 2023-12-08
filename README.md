@@ -1,6 +1,22 @@
 # Shape Completion
 
-Used to train DeepSDF
+### How to Cite
+
+If you use this code in your research, please cite the
+[paper](https://www.ipb.uni-bonn.de/wp-content/papercite-data/pdf/magistri2022ral-iros.pdf):
+```
+@article{magistri2022ral-iros,
+author = {Federico Magistri and Elias Marks and Sumanth Nagulavancha and Ignacio Vizzo and Thomas L{\"a}be and Jens Behley and Michael Halstead and Chris McCool and Cyrill Stachniss},
+title = {Contrastive 3D Shape Completion and Reconstruction for Agricultural Robots using RGB-D Frames},
+journal = ral,
+url = {https://www.ipb.uni-bonn.de/wp-content/papercite-data/pdf/magistri2022ral-iros.pdf},
+year = {2022},
+volume={7},
+number={4},
+pages={10120-10127},
+videourl = {https://www.youtube.com/watch?v=2ErUf9q7YOI},
+}
+```
 
 ### Installation
 
