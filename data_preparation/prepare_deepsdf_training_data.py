@@ -112,13 +112,12 @@ def show_pos_neg(pos: np.ndarray, neg: np.ndarray, swl_points: np.ndarray = None
 if __name__ == "__main__":
   #%% Parse arguments
   parser = argparse.ArgumentParser(description="Prepare deep sdf training with measurement arm data")
-  parser.add_argument("swlply_filename", help="filename for the fruit pointcloud, either  .swl file from the measurement arm or .ply pointcloud file")
-  parser.add_argument("output_filename", help="filename for the .npz output file with the sdf samples")    
+  parser.add_argument("source_dir", help="filename for the fruit pointcloud, either  .swl file from the measurement arm or .ply pointcloud file")
   parser.add_argument("--no_of_samples", default=100000, type=int,
                       help="Number of positive/negative samples, default: 100.000")
                       
   parser.add_argument("--tsdf_positive", default=0.04, type=float,
-                      help="Maximal positive (outside) sdf value, default:0.02")
+                      help="Maximal positive (outside) sdf value, default:0.04")
   parser.add_argument("--tsdf_negative", default=0.01, type=float,
                       help="Maximal negative (inside) sdf value, default:0.01")
   # parser.add_argument("--bounding_box", nargs=6, type=float,
@@ -138,11 +137,11 @@ if __name__ == "__main__":
   
     
   #%% Load
-  print('Load %s ...' % args.swlply_filename, flush=True)
-  for fname in os.listdir(args.swlply_filename):
+  print('Load %s ...' % args.source_dir, flush=True)
+  for fname in os.listdir(args.source_dir):
     
-    path_to_file = os.path.join(args.swlply_filename, fname)
-    filename, file_extension = os.path.splitext(path_to_file)
+    path_to_file = os.path.join(args.source_dir, fname, 'laser/fruit.ply')
+    # filename, file_extension = os.path.splitext(path_to_file)
 
     swl_points = o3d.io.read_point_cloud(path_to_file)
     points = np.asarray(swl_points.points)
@@ -169,8 +168,7 @@ if __name__ == "__main__":
       
       if args.show_truncated_points:
         show_swl_points(swl_points, 'Points after applying bounding box')
-
-    
+ 
     #%% Removing noise
     if args.remove_noise:
       print('Remove noise ...', flush=True)
@@ -187,7 +185,6 @@ if __name__ == "__main__":
       swl_points = np.hstack((swl_points, swl_viewpoint))
       # np.savetxt("/home/federico/Datasets/swl_points_test_leaf.txt", swl_points)
 
-    # import ipdb; ipdb.set_trace()
     #%% Generate sdf samples
     print('Generate sdf samples ...', flush=True)
     no_samples_per_point = int(np.ceil(args.no_of_samples/swl_points.shape[0]))
@@ -198,13 +195,12 @@ if __name__ == "__main__":
     neg = neg[np.random.choice(neg.shape[0], args.no_of_samples, replace=False), :]
     
     #%% Save
-    print('Save to %s ...' % args.output_filename, flush=True)
-    # import ipdb; ipdb.set_trace()
-    np.savez(os.path.join(args.output_filename,fname.replace('.ply','')), pos=pos, neg=neg)
+    output_filename = os.path.join(args.source_dir, fname, 'laser/samples.npz')
+    print('Save to %s ...' % output_filename, flush=True)
+    np.savez(os.path.join(output_filename), pos=pos, neg=neg)
 
     #%% Saving pcd for inspection
-    # pcd_fname = args.output_filename.replace('processed','pcd')
-    # pcd_fname = pcd_fname.replace('npz','ply')
+    # pcd_fname = output_filename.replace('.npz','.ply')
     # pcd = np2o3d(swl_points)
     # pcd.translate(-pcd.get_center())
     # pcd.estimate_normals()

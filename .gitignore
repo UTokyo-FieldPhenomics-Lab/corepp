@@ -1,0 +1,11 @@
+*/__pycache__/
+*.pyc
+*.npz
+*.pth
+data/
+deepsdf/experiments/
+cache/
+runs/
+checkpoints/
+*~
+results/

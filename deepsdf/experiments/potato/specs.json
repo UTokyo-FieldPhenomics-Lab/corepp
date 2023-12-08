@@ -1,6 +1,6 @@
 {
   "Description" :  "Tomato Deepsdf Pretrain latent=32",
-  "DataSource" : "<path-to-dataset>/", 
+  "DataSource" : "<path-to-shape_completion>/data/", 
   "TrainSplit" : "<path-to-shape_completion>/deepsdf/experiments/splits/potato_train.json",
   "TestSplit" : "<path-to-shape_completion>/deepsdf/experiments/splits/potato_test.json",
   "NetworkArch" : "deep_sdf_decoder",
