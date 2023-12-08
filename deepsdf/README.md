@@ -1,7 +1,6 @@
 # DeepSDF modified from the original repository
 
-This is a simplified version of DeepSDF where I removed all the preprocessing steps, those are outdated and not relevant for us at the moment. If needed we can reimplement such functionalities with open3d.
-
+This is a simplified version of DeepSDF where I removed all the preprocessing steps, those are outdated and not relevant for us at the moment.
 The original repository is [here](https://github.com/facebookresearch/DeepSDF)
 
 Below you can read the original instructions
@@ -114,5 +113,5 @@ This will use the latest model parameters to reconstruct all the meshes in the s
 
 DeepSDF is relased under the MIT License. See the [LICENSE file][5] for more details.
 
-[5]: https://github.com/facebookresearch/DeepSDF/blob/master/LICENSE
+[5]: https://github.com/magistri/shape_completion/blob/master/deepsdf/LICENSE
 [6]: http://openaccess.thecvf.com/content_CVPR_2019/html/Park_DeepSDF_Learning_Continuous_Signed_Distance_Functions_for_Shape_Representation_CVPR_2019_paper.html

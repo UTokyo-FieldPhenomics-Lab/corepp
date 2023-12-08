@@ -304,8 +304,7 @@ if __name__ == "__main__":
             if "npz" not in npz:
                 continue
 
-        full_filename = os.path.join(args.data_source, ws.sdf_samples_subdir, npz)
-
+        full_filename = os.path.join(npz)
         logging.debug("loading {}".format(npz))
 
         if args.depth:
