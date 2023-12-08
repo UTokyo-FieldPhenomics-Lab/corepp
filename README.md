@@ -1,4 +1,4 @@
-# Shape Completion for Grasping
+# Shape Completion
 
 Used to train DeepSDF
 
