@@ -2,7 +2,7 @@
 
 ### How to Cite
 
-If you use this code in your research, please cite the
+If you use this code in your research, please cite our
 [paper](https://www.ipb.uni-bonn.de/wp-content/papercite-data/pdf/magistri2022ral-iros.pdf):
 ```
 @article{magistri2022ral-iros,
