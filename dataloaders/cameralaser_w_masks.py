@@ -18,8 +18,8 @@ import matplotlib as mpl
 from torchvision.transforms.transforms import ToTensor, Resize
 from torch.utils.data import DataLoader
 
-from transforms import Pad
-# from dataloaders.transforms import Pad
+# from transforms import Pad
+from dataloaders.transforms import Pad
 
 mpl.rcParams['image.cmap'] = 'gray'
 

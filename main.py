@@ -26,7 +26,6 @@ import networks.utils as net_utils
 from loss import KLDivLoss, SuperLoss, SDFLoss, RegLatentLoss, AttRepLoss
 from utils import sdf2mesh, save_model, tensor_dict_2_float_dict
 
-
 DEBUG = True
 
 torch.autograd.set_detect_anomaly(True)
