@@ -19,6 +19,7 @@ def main(src, dst):
 
         ## sample points from mesh
         pcd = mesh.sample_points_uniformly(number_of_points=20000)
+        pcd.translate(-pcd.get_center())
         # o3d.visualization.draw_geometries([pcd], window_name="point cloud from mesh, uniformly sampled")
 
         os.makedirs(dst, exist_ok=True)
