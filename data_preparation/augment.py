@@ -9,7 +9,7 @@ import argparse
 import json
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-from prepare_training_measurement_arm import generate_tsdf_samples, show_pos_neg
+from prepare_deepsdf_training_data import generate_tsdf_samples, show_pos_neg
 
 
 SAVE = True
