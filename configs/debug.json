@@ -1,8 +1,8 @@
 {
-    "data_dir" : "/media/federico/2.0_TB_HDD/ipb_x_qut/SweetPepperSmall/",
-    "checkpoint_dir" : "/media/federico/2.0_TB_HDD/ipb_x_qut/SweetPepperSmallLogs/checkpoints/",
+    "data_dir" : "<path-to-folder-data>/",
+    "checkpoint_dir" : "<path-to-checkpoint-folder>/",
     "checkpoint_file": "",
-    "log_dir": "/media/federico/2.0_TB_HDD/ipb_x_qut/SweetPepperSmallLogs/logs",
+    "log_dir": "<path-to-log-folder>/",
     "encoder": "big",
     "batch_size" : 1,
     "image_size" : 256,
