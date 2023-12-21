@@ -1,0 +1,8 @@
+{
+  "comment": "Parameters for augmentation of fruits for deep sdf training",
+  "no_of_augmentations": 10,
+  "min_scalefactor": 0.5,
+  "max_scalefactor": 2.0,
+  "max_rotation_angle_degree": 30.0,
+  "max_shear": 0.5
+}
