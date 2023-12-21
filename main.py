@@ -119,6 +119,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     print(encoder)
     print(decoder)
 
+    # import ipdb; ipdb.set_trace()
     n_iter = 0  # used for tensorboard
     for e in range(param["epoch"]):
         for idx, item in enumerate(iter(dataset)):
@@ -202,14 +203,6 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                 # logging
                 writer.add_scalar('Loss/Train/SDFLoss', param['lambda_sdf']* loss_sdf, n_iter)
                 logging_string += ' -- loss sdf: {}'.format( param['lambda_sdf']*loss_sdf.item())
-
-            if param["rendering"]:
-                loss_render = RenderLoss(pred_sdf, grid_batch, item, param, device)
-                loss += param['lambda_rendering']*loss_render
-
-                # logging
-                writer.add_scalar('Loss/Train/Renderer', loss_render, n_iter)
-                logging_string += ' -- loss render: {}'.format(loss_render.item())
 
             loss.backward()
             optim.step()
