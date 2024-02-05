@@ -18,8 +18,8 @@ import matplotlib as mpl
 from torchvision.transforms.transforms import ToTensor, Resize
 from torch.utils.data import DataLoader
 
-from transforms import Pad
-# from dataloaders.transforms import Pad
+# from transforms import Pad
+from dataloaders.transforms import Pad
 
 mpl.rcParams['image.cmap'] = 'gray'
 
@@ -283,16 +283,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
             lst_images = os.listdir(self.data_source+id+'/realsense/masks/')
             lst_images.sort()
             for count_img, fname in enumerate(lst_images):
-
-                # frame_id = int(fname[:-4]) - 1                
-                # ####################### 
-                # # if frame_id > 600: break
-                # if count_img % 10 != 0: continue  # keeping one frame each sec, max 20 images per fruit
-                # ####################### 
-
                 files.append(self.data_source+id+'/realsense/color/'+fname)
-
-            # print(frame_id)
 
         files.sort() 
         return files

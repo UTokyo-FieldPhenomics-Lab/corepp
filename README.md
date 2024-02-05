@@ -25,7 +25,7 @@ Look at [INSTALL.md](INSTALL.md).
 ### Training the Network 
 
 At the moment we can run a simple training by issuing:
-* `python main.py -e ./deepsdf/experiments/<name> -c ./configs/<cfg>.json`
+* `python train.py -e ./deepsdf/experiments/<name> -c ./configs/<cfg>.json`
 NB: you need to pretrain a DeepSDF network first
 
 ### Testing the Network 
