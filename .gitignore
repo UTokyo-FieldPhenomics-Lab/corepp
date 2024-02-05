@@ -10,3 +10,4 @@ checkpoints/
 *~
 results/
 data_preparation/move.py
+prototype.py
