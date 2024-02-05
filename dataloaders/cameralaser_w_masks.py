@@ -18,8 +18,8 @@ import matplotlib as mpl
 from torchvision.transforms.transforms import ToTensor, Resize
 from torch.utils.data import DataLoader
 
-# from transforms import Pad
-from dataloaders.transforms import Pad
+from transforms import Pad
+# from dataloaders.transforms import Pad
 
 mpl.rcParams['image.cmap'] = 'gray'
 
@@ -119,54 +119,44 @@ def show_cv(img, fruit_id):
 
 class MaskedCameraLaserData(torch.utils.data.Dataset):
     def __init__(self, data_source, pad_size, pretrain, grid_density, 
-                tf=None, supervised_3d=False, split=None, sdf_loss=False, sdf_trunc=0.015, overfit=False, decoder=False):
+                tf=None, supervised_3d=False, split=None, sdf_loss=False, sdf_trunc=0.015, overfit=False, species=None):
 	    
         self.overfit = overfit
         self.data_source = data_source
-        self.update_decoder = decoder
-        
-        if 'Strawberry' in data_source:
-            self.species = 'Strawberry'
-        else:
-            self.species = 'SweetPepper'
+        self.species = species
 
         with open(os.path.join(self.data_source, 'split.json')) as json_file:
             self.split_ids = json.load(json_file)[split]
 
         # latents dics has to be defined before filtering not useable fruits
-        # self.latents_dict, trained_latents = self.get_latents_dict(pretrain) 
+        self.latents_dict, trained_latents = self.get_latents_dict(pretrain) 
         self.split_ids = self.check_is_useable()
 
         # loading output of realsense registration
-        registration_outputs = self.get_registration_outputs()
+        # registration_outputs = self.get_registration_outputs()
         
-        self.Ks = registration_outputs['K']
-        self.poses = registration_outputs['pose']
-        self.bboxs = registration_outputs['bbox']
-        self.global_bbox = self.find_global_bbox()
+        # self.Ks = registration_outputs['K']
+        # self.poses = registration_outputs['pose']
+        # self.bboxs = registration_outputs['bbox']
+        # self.global_bbox = self.find_global_bbox()
 
         self.files = self.get_instance_filenames()
 
-        self.sdf_loss = sdf_loss
-        self.sdf_trunc = sdf_trunc
+        # self.sdf_loss = sdf_loss
+        # self.sdf_trunc = sdf_trunc
 
         self.grid_density = grid_density
         self.supervised_3d = supervised_3d
         self.tf = tf
 
         self.pad_size = pad_size
-        # self.target_mean = torch.mean(trained_latents, dim=0)
-        # self.target_cov = torch.cov(trained_latents.T)
 
     def get_latents_dict(self, path):
         "create dictionary of pairs fruit_id:latent given pretrained model"
-
-        species = 'SweetPepper' if self.update_decoder else self.species
- 
         spect_path = os.path.join(path, 'specs.json')
         spec_file = open(spect_path,'r')
         split_file = open(json.load(spec_file)['TrainSplit'],'r')
-        split = json.load(split_file)['.'][species]
+        split = json.load(split_file)['.'][self.species]
 
         latent = torch.load(os.path.join(path, 'LatentCodes/latest.pth'))['latent_codes']['weight']
         latent_dictionary = dict(zip(split, latent))
@@ -290,24 +280,15 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
                 if count_id == 1: break
             #######################  
 
-            max_frame_id = len(self.poses[id])
-            if self.species == 'Strawberry': 
-                lst_images = os.listdir(self.data_source+id+'/realsense/masks_cntr/')
-            else:
-                lst_images = os.listdir(self.data_source+id+'/realsense/masks/')
+            lst_images = os.listdir(self.data_source+id+'/realsense/masks/')
             lst_images.sort()
             for count_img, fname in enumerate(lst_images):
 
-
-                frame_id = int(fname[:-4]) - 1
-
-                if frame_id == max_frame_id: break
-                
-                ####################### 
-                # if frame_id > 600: break
-                if count_img % 10 != 0: continue  # keeping one frame each sec, max 20 images per fruit
-                ####################### 
-
+                # frame_id = int(fname[:-4]) - 1                
+                # ####################### 
+                # # if frame_id > 600: break
+                # if count_img % 10 != 0: continue  # keeping one frame each sec, max 20 images per fruit
+                # ####################### 
 
                 files.append(self.data_source+id+'/realsense/color/'+fname)
 
@@ -405,41 +386,33 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         return useable_fruits
 
     def __len__(self):
-        # print(len(self.files))
         return len(self.files)
 
     def __getitem__(self, idx):
 
         # ugly stuff to get consistent ids
         fruit_id = self.files[idx].split('/')[-4]
-        frame_id = int(self.files[idx].split('/')[-1][:-4]) - 1 # realsense idxs start with 1 
+        frame_id = self.files[idx].split('/')[-1][:-4]
         
         target_pcd_fname = os.path.join(self.data_source, fruit_id+'/laser/fruit.ply')
         target_pcd = o3d.io.read_point_cloud(target_pcd_fname)
 
-        # print(idx, fruit_id, frame_id)
-
         image_path = self.files[idx]
         depth_path = image_path.replace('color', 'depth')
         depth_path = depth_path.replace('png', 'npy')
-        if self.species == 'Strawberry':
-            mask_path = image_path.replace('color', 'masks_cntr')
-        else:
-            mask_path = image_path.replace('color', 'masks')
+        mask_path = image_path.replace('color', 'masks')
 
         rgb = cv.imread(image_path)
         rgb = cv.cvtColor(rgb, cv.COLOR_BGR2RGB)
-        depth = np.load(depth_path)
+        depth = np.load(depth_path).astype(np.float32)
         mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE) // 255
-        
+
         # getting intrinsic and camera pose
-        k = self.Ks[fruit_id]
-        pose = self.poses[fruit_id][frame_id]
-        bbox = self.global_bbox
-
-        if self.sdf_loss:
-            target_sdf, target_sdf_weights, _ = self.compute_target_sdf(rgb, depth, pose, k)
-
+        # k = self.Ks[fruit_id]
+        # pose = self.poses[fruit_id][frame_id]
+        # bbox = self.global_bbox
+        # if self.sdf_loss:
+        #     target_sdf, target_sdf_weights, _ = self.compute_target_sdf(rgb, depth, pose, k)
         # cropping image to region of interest
         rgb, depth, mask, crop_origin, crop_dim, padding_mask = self.preprocess_images(rgb, depth, mask)
         
@@ -451,20 +424,20 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         # [axi.set_axis_off() for axi in axs.ravel()]
         # plt.show()
 
-        intrinsic = self.update_intrinsic(crop_origin, depth.shape, k)
+        # intrinsic = self.update_intrinsic(crop_origin, depth.shape, k)
 
         item = {
             'dimension': crop_dim,
             'fruit_id': fruit_id,
             'frame_id': frame_id,
-            'pose': pose,
-            'K': intrinsic,
-            'bbox': bbox,
+            # 'pose': pose,
+            # 'K': intrinsic,
+            # 'bbox': bbox,
         }
 
-        if self.sdf_loss:
-            item['target_sdf'] = torch.from_numpy(target_sdf)
-            item['target_sdf_weights'] = torch.from_numpy(target_sdf_weights)
+        # if self.sdf_loss:
+        #     item['target_sdf'] = torch.from_numpy(target_sdf)
+        #     item['target_sdf_weights'] = torch.from_numpy(target_sdf_weights)
 
         if self.tf:
             rgb = torch.from_numpy(np.array(self.tf(rgb))).permute(2,0,1)
@@ -479,7 +452,6 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         item['target_pcd'] = torch.Tensor(np.asarray(target_pcd.points))
 
         if self.supervised_3d:
-            
             trained_latent = self.latents_dict[fruit_id]
             item['latent'] = trained_latent
 
@@ -491,19 +463,20 @@ if __name__ == '__main__':
     # tfs = [Pad(size=128), ToTensor()]
     tfs = [Pad(size=500)]
     tf = transforms.Compose(tfs)
-    cl_dataset = MaskedCameraLaserData(data_source="/ipb14/export/igg_fruit/processed/SweetPepper/", 
-                                tf=tf, supervised_3d=False,
-                                pretrain='../deepsdf/experiments/sweetpeppers_latent12/', 
+    cl_dataset = MaskedCameraLaserData(data_source="/home/federico/Datasets/shape_completion/potato/Potato/", 
+                                tf=tf, supervised_3d=True,
+                                pretrain='/home/federico/Datasets/shape_completion/potato/deepsdf_potato_weights/', 
                                 pad_size=250,
-                                sdf_loss=True,
+                                sdf_loss=False,
                                 grid_density=50,
-                                split='train')
+                                split='train',
+                                species='Potato')
 
     dataset = DataLoader(cl_dataset, batch_size=1, shuffle=False)
 
     c = 0
     for item in iter(dataset):
-        import ipdb;ipdb.set_trace()
+        # import ipdb;ipdb.set_trace()
         ids = item['fruit_id']
         c+=1
         print(c*32)
