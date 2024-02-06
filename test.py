@@ -95,7 +95,8 @@ def main_function(decoder, pretrain, cfg, latent_size):
             start = time.time()
             latent = encoder(rgbd)
 
-            grid_3d = Grid3D(grid_density, device, precision)
+            box = tensor_dict_2_float_dict(item['bbox'])
+            grid_3d = Grid3D(grid_density, device, precision, bbox=box)
             deepsdf_input = torch.cat([latent.expand(grid_3d.points.size(0), -1),
                                         grid_3d.points], dim=1).to(latent.device, latent.dtype)
             pred_sdf = decoder(deepsdf_input)
@@ -110,7 +111,8 @@ def main_function(decoder, pretrain, cfg, latent_size):
             pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
             pred_mesh.translate(np.full((3, 1), -(0.2 - 0)/2))
 
-            o3d.visualization.draw_geometries([pred_mesh.filter_smooth_laplacian(50)], mesh_show_wireframe=True)
+            cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
+            o3d.visualization.draw_geometries([pred_mesh, cs], mesh_show_wireframe=True)
 
         print(mean(exec_time))
 

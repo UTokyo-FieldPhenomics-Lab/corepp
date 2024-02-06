@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-from base64 import decode
 import copy
 import json
-import re
 import numpy as np
 import os
 import torch
@@ -129,21 +127,14 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
             self.split_ids = json.load(json_file)[split]
 
         # latents dics has to be defined before filtering not useable fruits
-        self.latents_dict, trained_latents = self.get_latents_dict(pretrain) 
+        self.latents_dict, _ = self.get_latents_dict(pretrain) 
         self.split_ids = self.check_is_useable()
 
         # loading output of realsense registration
-        # registration_outputs = self.get_registration_outputs()
-        
-        # self.Ks = registration_outputs['K']
-        # self.poses = registration_outputs['pose']
-        # self.bboxs = registration_outputs['bbox']
-        # self.global_bbox = self.find_global_bbox()
-
+        registration_outputs = self.get_intrinsics()
+        self.Ks = registration_outputs['K']
+        self.box = self.find_global_bbox()
         self.files = self.get_instance_filenames()
-
-        # self.sdf_loss = sdf_loss
-        # self.sdf_trunc = sdf_trunc
 
         self.grid_density = grid_density
         self.supervised_3d = supervised_3d
@@ -249,16 +240,18 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         intrinsic[0,2] -= crop_origin[1] - pad_y/2 + 0.5
         intrinsic[1,2] -= crop_origin[0] - pad_x/2 + 0.5
         return intrinsic
-    
+
     def find_global_bbox(self):
         dmax = 0
-        for fruit_id in self.bboxs:
-            dx = self.bboxs[fruit_id]['xmax'] - self.bboxs[fruit_id]['xmin']
-            dy = self.bboxs[fruit_id]['ymax'] - self.bboxs[fruit_id]['ymin']
-            dz = self.bboxs[fruit_id]['zmax'] - self.bboxs[fruit_id]['zmin']
+        for fruit_id in self.split_ids:
+            target_pcd_fname = os.path.join(self.data_source, fruit_id+'/laser/fruit.ply')
+            target_pcd = o3d.io.read_point_cloud(target_pcd_fname)
+            box = target_pcd.get_axis_aligned_bounding_box()
+            dx, dy, dz = np.abs(box.get_max_bound() - box.get_min_bound())
             local_dmax = max(dx,dy,dz)
             if local_dmax > dmax:
                 dmax = local_dmax
+        
         global_bbox = {'xmin': -dmax/2, 'xmax': dmax/2, 
                        'ymin': -dmax/2, 'ymax': dmax/2, 
                        'zmin': -dmax/2, 'zmax': dmax/2}    
@@ -288,7 +281,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         files.sort() 
         return files
 
-    def get_registration_outputs(self):
+    def get_intrinsics(self):
         """ 
         Load registration parameters
         
@@ -299,24 +292,13 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
                   and poses of each frame of each fruit
         """       
         Ks = {}
-        poses = {}
-        bboxs = {}
-
         for fruit in self.split_ids:
             path = os.path.join(self.data_source, fruit)
             k_path = os.path.join(path, 'realsense/intrinsic.json')
-            pose_path = os.path.join(path, 'tf/tf_allposes.npz')
-            bbox_path = os.path.join(path, 'tf/bounding_box.npz')
-
             k = self.load_K(k_path)
-            bbox = np.load(bbox_path)['arr_0']
-            pose = np.load(pose_path)['arr_0']
-
             Ks[fruit] = k
-            bboxs[fruit] = self.bbox2dict(bbox)
-            poses[fruit] = pose
         
-        return {'K': Ks, 'bbox': bboxs, 'pose':poses}
+        return {'K': Ks}
 
     def compute_target_sdf(self, rgb, depth, pose, k):
 
@@ -399,7 +381,9 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE) // 255
 
         # getting intrinsic and camera pose
-        # k = self.Ks[fruit_id]
+        k = self.Ks[fruit_id]
+        # import ipdb;ipdb.set_trace()
+
         # pose = self.poses[fruit_id][frame_id]
         # bbox = self.global_bbox
         # if self.sdf_loss:
@@ -415,15 +399,16 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         # [axi.set_axis_off() for axi in axs.ravel()]
         # plt.show()
 
-        # intrinsic = self.update_intrinsic(crop_origin, depth.shape, k)
+        intrinsic = self.update_intrinsic(crop_origin, depth.shape, k)
+        # import ipdb;ipdb.set_trace()
 
         item = {
             'dimension': crop_dim,
             'fruit_id': fruit_id,
             'frame_id': frame_id,
             # 'pose': pose,
-            # 'K': intrinsic,
-            # 'bbox': bbox,
+            'K': intrinsic,
+            'bbox': self.box,
         }
 
         # if self.sdf_loss:

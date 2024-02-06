@@ -101,6 +101,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     for e in range(param["epoch"]):
         for idx, item in enumerate(iter(dataset)):
 
+            # import ipdb;ipdb.set_trace()
             n_iter += 1  # for tensorboard
             logging_string = 'epoch: {}/{} -- iteration {}/{}'.format(e+1, param["epoch"], idx, len(dataset))
 
@@ -158,9 +159,11 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
             # creating a Grid3D for each latent in the batch
             current_batch_size = rgbd.shape[0]
 
+            box = tensor_dict_2_float_dict(item['bbox'])
+
             grid_batch = []
             for _ in range(current_batch_size):
-                grid_batch.append(Grid3D(grid_density, device, precision))
+                grid_batch.append(Grid3D(grid_density, device, precision, bbox=box))
 
             deepsdf_input = torch.zeros((current_batch_size, grid_density**3, latent_size+3))
             for batch_idx, (latent, grid) in enumerate(zip(latent_batch, grid_batch)):
@@ -220,15 +223,15 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
                         # encoding
                         latent_val = encoder(val_rgbd)
-                        grid_val = Grid3D(grid_density, device, precision)
+                        grid_val = Grid3D(grid_density, device, precision, bbox=box)
                         dec_input_val = torch.cat([latent_val.expand(grid.points.size(0), -1), grid_val.points], dim=1)
 
                         pred_sdf_val = decoder(dec_input_val)
 
-                        voxel_size = (0.2 - 0)/grid_density
+                        voxel_size = (box['xmax'] - box['xmin'])/grid_density
                         pred_mesh_val = sdf2mesh(pred_sdf_val, voxel_size, grid_density)
-                        pred_mesh_val.translate(np.full((3, 1), -(0.2 - 0)/2))
-                        
+                        pred_mesh_val.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
+                       
                         
                         gt_pcd = o3d.io.read_point_cloud(os.path.join(param["data_dir"], item['fruit_id'][0], 'laser/fruit.ply'))
 
@@ -242,8 +245,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                         pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)   
                         pred_set = o3d.geometry.LineSet(pred_mesh_val_lines)
 
-                        if e == param["epoch"] - 1:
-                            o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0)))])
+                        # if e == param["epoch"] - 1:
+                        #     o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0)))])
 
                         if args.overfit: break                        
 
