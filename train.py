@@ -30,27 +30,6 @@ DEBUG = True
 
 torch.autograd.set_detect_anomaly(True)
 
-def latent2mesh(item, decoder, latents, grid_density, device, precision):
-
-    latent_size = latents.shape[1]
-
-    current_batch_size = item['rgb'].shape[0]
-    box = tensor_dict_2_float_dict(item['bbox'])
-    voxel_size = (box['xmax'] - box['xmin'])/grid_density
-
-    grid_batch = []
-    for _ in range(current_batch_size):
-        grid_batch.append(Grid3D(grid_density, device, precision, bbox=box))
-
-    deepsdf_input = torch.zeros((current_batch_size, grid_density**3, latent_size+3))
-    for batch_idx, (latent, grid) in enumerate(zip(latents, grid_batch)):
-        deepsdf_input[batch_idx] = torch.cat([latent.expand(grid.points.size(0), -1), grid.points], dim=1)
-
-    deepsdf_input = deepsdf_input.to(device, latent.dtype)
-
-    pred_sdf = decoder(deepsdf_input)
-    return sdf2mesh(pred_sdf, voxel_size, grid_density)
-
 
 def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, update_decoder):
 
@@ -103,7 +82,6 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                                         overfit=overfit,
                                         species=param["species"]
                                         )
-    #import ipdb; ipdb.set_trace()
     dataset = DataLoader(cl_dataset, batch_size=param["batch_size"], shuffle=shuffle, drop_last=True)
 
     if update_decoder:
@@ -131,7 +109,6 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
             # unpacking inputs
             rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
-            # rgbd = item['depth'].to(device)
 
             # encoding
             latent_batch_unnormd = encoder(rgbd)
@@ -180,7 +157,6 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
             # creating a Grid3D for each latent in the batch
             current_batch_size = rgbd.shape[0]
-            # box = tensor_dict_2_float_dict(item['bbox'])
 
             grid_batch = []
             for _ in range(current_batch_size):
@@ -266,7 +242,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                         pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)   
                         pred_set = o3d.geometry.LineSet(pred_mesh_val_lines)
 
-                        # o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0))), input_depth.translate(np.array((0.2, 0, 0)))])
+                        if e == param["epoch"] - 1:
+                            o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0)))])
 
                         if args.overfit: break                        
 
