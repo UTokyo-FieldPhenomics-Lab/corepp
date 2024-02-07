@@ -36,6 +36,8 @@ torch.autograd.set_detect_anomaly(True)
 
 def main_function(decoder, pretrain, cfg, latent_size):
 
+    print("\n WARNING I'M NOT SAVING THE PREDICTIONS AT THE MOMENT \n")
+
     exec_time = []
 
     with open(cfg) as json_file:
@@ -79,7 +81,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
                                         supervised_3d=param["supervised_3d"],
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
-                                        split='train',
+                                        split='test',
                                         overfit=False,
                                         species=param["species"]
                                         )    
