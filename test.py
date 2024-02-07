@@ -114,7 +114,9 @@ def main_function(decoder, pretrain, cfg, latent_size):
             pred_mesh.translate(np.full((3, 1), -(0.2 - 0)/2))
 
             cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
-            o3d.visualization.draw_geometries([pred_mesh, cs], mesh_show_wireframe=True)
+            gt = o3d.geometry.PointCloud()
+            gt.points = o3d.utility.Vector3dVector(item['target_pcd'][0].numpy())
+            o3d.visualization.draw_geometries([pred_mesh.translate([.1,0,0]), gt, cs], mesh_show_wireframe=True)
 
         print(mean(exec_time))
 
