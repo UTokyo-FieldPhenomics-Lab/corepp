@@ -78,7 +78,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
                                         tf=tf, pretrain=pretrain,
                                         pad_size=param["image_size"],
-                                        supervised_3d=param["supervised_3d"],
+                                        supervised_3d=False,
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
                                         split='test',
