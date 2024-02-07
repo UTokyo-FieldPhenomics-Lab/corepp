@@ -107,16 +107,11 @@ def list_depth_frames(data_source, split):
         for class_name in split[dataset]:
             for instance_name in split[dataset][class_name]:
                 
-                pose_path = os.path.join(data_source,class_name,instance_name,'tf/tf_allposes.npz')
-                poses = np.load(pose_path)['arr_0']
-                max_frame_id = len(poses)
-
                 base_path = os.path.join(data_source,class_name,instance_name,'realsense/depth/')
                 base_dir = os.listdir(base_path)
                 base_dir.sort()
 
-                for frame_id, frame in enumerate(base_dir):
-                    if frame_id == max_frame_id: break
+                for _, frame in enumerate(base_dir):
                     npzfiles += [os.path.join(base_path,frame)]
     return npzfiles
 

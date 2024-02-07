@@ -1,5 +1,6 @@
 import open3d as o3d
 import numpy as np
+import cv2 as cv
 from scipy.spatial.transform import Rotation as R
 import copy
 import getpass
@@ -146,7 +147,7 @@ def generate_deepsdf_target(pcd, mu=0.001, align_with=np.array([0.0, 1.0, 0.0]))
 
     return sdf_pos, sdf_neg
 
-def read_depth_as_pcd(filename):
+def read_depth_as_pcd(filename, pose=True):
 
     frame_id = int(filename.split('/')[-1][:-4])
 
@@ -156,20 +157,22 @@ def read_depth_as_pcd(filename):
 
     # getting rgb
     image_path = filename.replace('depth', 'color') # os.path.join('/',*filename.split('/')[:-3])#, 'color/', filename.replace('npy', 'png'))
-    # color_file = os.path.join('/',*filename.split('/')[:-3], 'color/', image_path.replace('npy', 'png'))
     color_file = image_path.replace('npy', 'png')
+    mask_file = color_file.replace('color','masks')
 
     color = o3d.io.read_image(color_file)
+    mask = cv.imread(mask_file, cv.IMREAD_GRAYSCALE) // 255
     rgb_np = np.asarray(color)
     rgb_np = np.copy(rgb_np[:,:,0:3])
+    rgb_np[np.where(mask==0)] = 0
     color = o3d.geometry.Image(rgb_np)
 
     # getting pose
-    posesfilename = os.path.join('/',*filename.split('/')[:-3], 'tf/tf_allposes.npz')
-    # posesfilename = os.path.join(*filename.split('/')[:-3], 'tf/tf_allposes.npz')
-    poses = np.load(posesfilename)
-    pose = poses['arr_0'][frame_id-1]
-    invpose = np.linalg.inv(pose)
+    invpose = np.eye(4)
+    if pose:
+        posesfilename = os.path.join('/',*filename.split('/')[:-3], 'tf/tf_allposes.npz')
+        poses = np.load(posesfilename)
+        invpose = np.linalg.inv(poses['arr_0'][frame_id-1])
 
     # getting bbox
     bbfilename = os.path.join('/',*filename.split('/')[:-3], 'tf/bounding_box.npz')
@@ -184,7 +187,6 @@ def read_depth_as_pcd(filename):
     intrinsicfilename = os.path.join('/',*filename.split('/')[:-2], 'intrinsic.json')
     intrinsic = o3d.io.read_pinhole_camera_intrinsic(intrinsicfilename)
   
-
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
         color,
         depth,
@@ -192,18 +194,13 @@ def read_depth_as_pcd(filename):
         depth_trunc=1.0,
         convert_rgb_to_intensity=False)
 
-
-    # gt_path = os.path.join(*filename.split('/')[:-3], 'laser/fruit.ply')
-
-    # gt = o3d.io.read_point_cloud(gt_path)
-    # gt.paint_uniform_color(np.array([1,0,1]))
-
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, intrinsic, invpose,
                                                           project_valid_depth_only=True)
-
-    # o3d.visualization.draw_geometries([ pcd, bb, frame, gt])
+    pcd_colors = np.asarray(pcd.colors)
+    valid_mask = pcd_colors.sum(axis=1)
+    pcd = pcd.select_by_index(np.where(valid_mask!=0)[0])
+    pcd.translate(-pcd.get_center())
     pcd = pcd.crop(bb)
-    # o3d.visualization.draw_geometries([pcd, bb, frame])
     return pcd
 
 if __name__ == "__main__":

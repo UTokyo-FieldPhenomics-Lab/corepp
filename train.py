@@ -211,7 +211,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                                                         species=param["species"]
                                                         )
 
-                val_dataset = DataLoader(val_cl_dataset, batch_size=1, shuffle=False)
+                val_dataset = DataLoader(cl_dataset, batch_size=1, shuffle=False)
 
                 cd_val = 0
                 print('\nvalidation...')
@@ -219,7 +219,6 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
                     if jdx % 10 == 0:
                         val_rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
-                        # val_rgbd = item['depth'].to(device)
 
                         # encoding
                         latent_val = encoder(val_rgbd)
@@ -232,9 +231,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                         pred_mesh_val = sdf2mesh(pred_sdf_val, voxel_size, grid_density)
                         pred_mesh_val.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
                        
-                        
+    
                         gt_pcd = o3d.io.read_point_cloud(os.path.join(param["data_dir"], item['fruit_id'][0], 'laser/fruit.ply'))
-
                         pt_pcd = pred_mesh_val.sample_points_uniformly(1000000)
                         dist_pt_2_gt = np.asarray(pt_pcd.compute_point_cloud_distance(gt_pcd))
                         dist_gt_2_pt = np.asarray(gt_pcd.compute_point_cloud_distance(pt_pcd))
@@ -242,7 +240,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                         cd_val += d
                        
                         pred_mesh_val = pred_mesh_val.filter_smooth_simple(10)
-                        pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)   
+                        pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)
                         pred_set = o3d.geometry.LineSet(pred_mesh_val_lines)
 
                         # if e == param["epoch"] - 1:
