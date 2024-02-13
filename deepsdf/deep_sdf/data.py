@@ -68,7 +68,7 @@ def read_sdf_samples_into_ram(filename, partial=False, depth=False):
                                                              align_with=np.array([0.0, 1.0, 0.0]))
         pos_tensor = torch.from_numpy(pos_tensor)
         neg_tensor = torch.from_numpy(neg_tensor)      
-    if depth:
+    elif depth:
         pcd = o3du.read_depth_as_pcd(filename, pose=False)
         pos_tensor, neg_tensor = o3du.generate_deepsdf_target(pcd,
                                                              align_with=np.array([0.0, -1.0, 0.0]))
