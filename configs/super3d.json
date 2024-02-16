@@ -8,7 +8,7 @@
     "batch_size" : 16,
     "image_size" : 250,
     "epoch" : 500,
-    "lr" : 0.001,
+    "lr" : 0.0001,
     "lambda_kl" : 100,
     "lambda_attraction" : 1,
     "lambda_repulsion" : 1,

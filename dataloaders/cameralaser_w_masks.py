@@ -127,7 +127,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
             self.split_ids = json.load(json_file)[split]
 
         # latents dics has to be defined before filtering not useable fruits
-        self.latents_dict, _ = self.get_latents_dict(pretrain) 
+        self.latents_dict = self.get_latents_dict(pretrain) 
         self.split_ids = self.check_is_useable()
 
         # loading output of realsense registration
@@ -144,15 +144,13 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
 
     def get_latents_dict(self, path):
         "create dictionary of pairs fruit_id:latent given pretrained model"
-        spect_path = os.path.join(path, 'specs.json')
-        spec_file = open(spect_path,'r')
-        split_file = open(json.load(spec_file)['TrainSplit'],'r')
-        split = json.load(split_file)['.'][self.species]
-
-        latent = torch.load(os.path.join(path, 'LatentCodes/latest.pth'))['latent_codes']['weight']
-        latent_dictionary = dict(zip(split, latent))
-
-        return latent_dictionary, latent
+        latent_dictionary = {}
+        path = os.path.join(path, 'Reconstructions/3000/Codes/complete')
+        for fname in os.listdir(path):
+            latent = torch.load(os.path.join(path,fname))
+            key = fname[:-4]
+            latent_dictionary[key] = latent
+        return latent_dictionary
 
     @staticmethod
     def preprocess_images(rgb, depth, mask):
@@ -382,25 +380,10 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
 
         # getting intrinsic and camera pose
         k = self.Ks[fruit_id]
-        # import ipdb;ipdb.set_trace()
-
-        # pose = self.poses[fruit_id][frame_id]
-        # bbox = self.global_bbox
-        # if self.sdf_loss:
-        #     target_sdf, target_sdf_weights, _ = self.compute_target_sdf(rgb, depth, pose, k)
-        # cropping image to region of interest
         rgb, depth, mask, crop_origin, crop_dim, padding_mask = self.preprocess_images(rgb, depth, mask)
-        
-        # fig, axs = plt.subplots(1,3)
-        # axs[0].imshow(rgb)
-        # axs[1].imshow(depth)
-        # axs[2].imshow(mask*255)
 
-        # [axi.set_axis_off() for axi in axs.ravel()]
-        # plt.show()
 
         intrinsic = self.update_intrinsic(crop_origin, depth.shape, k)
-        # import ipdb;ipdb.set_trace()
 
         item = {
             'dimension': crop_dim,
@@ -429,7 +412,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
 
         if self.supervised_3d:
             trained_latent = self.latents_dict[fruit_id]
-            item['latent'] = trained_latent
+            item['latent'] = trained_latent.squeeze()
 
         return item
 

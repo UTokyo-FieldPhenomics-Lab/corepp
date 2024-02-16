@@ -17,6 +17,7 @@ import deepsdf.deep_sdf as deep_sdf
 import deepsdf.deep_sdf.workspace as ws
 import deepsdf.deep_sdf.o3d_utils as o3d_utils
 
+
 from sdfrenderer.grid import Grid3D
 from dataloaders.transforms import Pad
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
@@ -31,6 +32,7 @@ import time
 import json
 
 from utils import sdf2mesh, tensor_dict_2_float_dict
+
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -78,10 +80,10 @@ def main_function(decoder, pretrain, cfg, latent_size):
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
                                         tf=tf, pretrain=pretrain,
                                         pad_size=param["image_size"],
-                                        supervised_3d=False,
+                                        supervised_3d=True,
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
-                                        split='test',
+                                        split='train',
                                         overfit=False,
                                         species=param["species"]
                                         )    
@@ -95,6 +97,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
             rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
 
             start = time.time()
+            import ipdb;ipdb.set_trace()
             latent = encoder(rgbd)
 
             box = tensor_dict_2_float_dict(item['bbox'])
@@ -109,9 +112,9 @@ def main_function(decoder, pretrain, cfg, latent_size):
             print(n_iter, item['fruit_id'], inference_time)
 
             start = time.time()
-            voxel_size = (0.2 - 0)/grid_density
+            voxel_size = (box['xmax'] - box['xmin'])/grid_density
             pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
-            pred_mesh.translate(np.full((3, 1), -(0.2 - 0)/2))
+            # pred_mesh.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
 
             cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
             gt = o3d.geometry.PointCloud()
