@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import os
+from tqdm import tqdm
 
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms.transforms import ToTensor, Compose, Resize
@@ -32,7 +33,10 @@ import time
 import json
 
 from utils import sdf2mesh, tensor_dict_2_float_dict
+# from metrics_3d import chamfer_distance, precision_recall
 
+# cd = chamfer_distance.ChamferDistance()
+# pr = precision_recall.PrecisionRecall(0.001, 0.01, 10)
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -83,7 +87,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
                                         supervised_3d=True,
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
-                                        split='train',
+                                        split='test',
                                         overfit=False,
                                         species=param["species"]
                                         )    
@@ -91,13 +95,12 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
     with torch.no_grad():
 
-        for n_iter, item in enumerate(iter(dataset)):
+        for n_iter, item in enumerate(tqdm(iter(dataset))):
 
             # unpacking inputs
             rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
 
             start = time.time()
-            import ipdb;ipdb.set_trace()
             latent = encoder(rgbd)
 
             box = tensor_dict_2_float_dict(item['bbox'])
@@ -109,19 +112,26 @@ def main_function(decoder, pretrain, cfg, latent_size):
             inference_time = time.time() - start
             if n_iter > 0:
                 exec_time.append(inference_time)
-            print(n_iter, item['fruit_id'], inference_time)
+            # print(n_iter, item['fruit_id'], inference_time)
 
             start = time.time()
             voxel_size = (box['xmax'] - box['xmin'])/grid_density
             pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
-            # pred_mesh.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
+            pred_mesh.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
+            # pred_mesh = pred_mesh.filter_smooth_simple(number_of_iterations=2)
 
             cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
             gt = o3d.geometry.PointCloud()
             gt.points = o3d.utility.Vector3dVector(item['target_pcd'][0].numpy())
-            o3d.visualization.draw_geometries([pred_mesh.translate([.1,0,0]), gt, cs], mesh_show_wireframe=True)
+            # o3d.visualization.draw_geometries([pred_mesh.translate([.1,0,0]), gt, cs], mesh_show_wireframe=True)
+            # o3d.visualization.draw_geometries([pred_mesh, gt, cs], mesh_show_wireframe=True)
+            # cd.update(gt,pred_mesh)
+            # pr.update(gt,pred_mesh)
 
-        print(mean(exec_time))
+
+        print('inference time: {}'.format(mean(exec_time)))
+        # cd.compute()
+        # pr.compute_at_threshold(0.005)
 
 
 if __name__ == "__main__":
