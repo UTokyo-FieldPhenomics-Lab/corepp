@@ -40,6 +40,21 @@ from utils import sdf2mesh, tensor_dict_2_float_dict
 
 torch.autograd.set_detect_anomaly(True)
 
+
+def from_pred_sdf_to_mesh(pred_sdf, grid_points):
+    keep_idx = pred_sdf<0.008
+    keep_points = grid_points[keep_idx.squeeze()]
+    pcd_grid = o3d.geometry.PointCloud()
+    pcd_grid.points = o3d.utility.Vector3dVector(keep_points.detach().cpu())
+    # mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd_grid, depth=3)
+    hull, _ = pcd_grid.compute_convex_hull()
+    hull.remove_degenerate_triangles()
+    hull.remove_duplicated_triangles()
+    hull.remove_duplicated_vertices()
+    hull.remove_non_manifold_edges()
+    hull.remove_unreferenced_vertices()
+    return hull
+
 def main_function(decoder, pretrain, cfg, latent_size):
 
     print("\n WARNING I'M NOT SAVING THE PREDICTIONS AT THE MOMENT \n")
@@ -97,6 +112,10 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
         for n_iter, item in enumerate(tqdm(iter(dataset))):
 
+            cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
+            gt = o3d.geometry.PointCloud()
+            gt.points = o3d.utility.Vector3dVector(item['target_pcd'][0].numpy())
+
             # unpacking inputs
             rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
 
@@ -108,10 +127,17 @@ def main_function(decoder, pretrain, cfg, latent_size):
             deepsdf_input = torch.cat([latent.expand(grid_3d.points.size(0), -1),
                                         grid_3d.points], dim=1).to(latent.device, latent.dtype)
             pred_sdf = decoder(deepsdf_input)
-
+            mesh = from_pred_sdf_to_mesh(pred_sdf, grid_3d.points)
+            if mesh.is_watertight():
+                volume = mesh.get_volume()
+            else:
+                print(item['frame_id'])
+            # o3d.visualization.draw_geometries([hull, gt, cs], mesh_show_wireframe=True)
             inference_time = time.time() - start
+            # for the deployment we can delete from here to the end of the file
             if n_iter > 0:
                 exec_time.append(inference_time)
+            continue
             # print(n_iter, item['fruit_id'], inference_time)
 
             start = time.time()
@@ -119,10 +145,6 @@ def main_function(decoder, pretrain, cfg, latent_size):
             pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
             pred_mesh.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
             # pred_mesh = pred_mesh.filter_smooth_simple(number_of_iterations=2)
-
-            cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
-            gt = o3d.geometry.PointCloud()
-            gt.points = o3d.utility.Vector3dVector(item['target_pcd'][0].numpy())
             # o3d.visualization.draw_geometries([pred_mesh.translate([.1,0,0]), gt, cs], mesh_show_wireframe=True)
             # o3d.visualization.draw_geometries([pred_mesh, gt, cs], mesh_show_wireframe=True)
             # cd.update(gt,pred_mesh)
