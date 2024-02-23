@@ -2,7 +2,7 @@
     "species" : "Potato",
     "data_dir" : "/home/federico/Datasets/shape_completion/potato/Potato/",
     "checkpoint_dir" : "/home/federico/Datasets/shape_completion/potato/logs/checkpoints/",
-    "checkpoint_file": "_super3d_best_model.pt",
+    "checkpoint_file": "_super3d_best_val.pt",
     "log_dir": "/home/federico/Datasets/shape_completion/potato/logs/runs/",
     "encoder" : "pool",
     "batch_size" : 16,
