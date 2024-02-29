@@ -46,6 +46,53 @@ class Encoder(nn.Module):
         out = out.reshape(batch_size, self.latent_size)  # --> maybe not needed
         return out.float()
 
+class EncoderPooled(nn.Module):
+    def __init__(self, in_channels, out_channels, size):
+        super(EncoderPooled, self).__init__()
+
+        self.latent_size = out_channels
+        self.size = size
+        
+        input_dim = (in_channels, size, size)
+
+        # convolutions
+        encoder = [
+            nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.Flatten()
+            ]
+
+        self.encoder = nn.Sequential(*encoder)
+        self.num_features = functools.reduce(operator.mul, list(self.encoder(torch.rand(1, *input_dim)).shape))
+
+        # linears
+        fcn = [
+            nn.Linear(self.num_features, self.latent_size, bias=True)
+        ]
+
+        encoder += fcn
+
+        self.encoder = nn.Sequential(*encoder)
+
+    def forward(self, input):
+        batch_size = input.shape[0]
+        out = self.encoder(input)
+        out = out.reshape(batch_size, self.latent_size)  # --> maybe not needed
+        return out.float()
+
 class EncoderBig(nn.Module):
     def __init__(self, in_channels, out_channels, size):
         super(EncoderBig, self).__init__()

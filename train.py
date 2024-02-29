@@ -20,7 +20,7 @@ from sdfrenderer.grid import Grid3D
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
 from dataloaders.transforms import Pad
 
-from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled
+from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled
 import networks.utils as net_utils
 
 from loss import KLDivLoss, SuperLoss, SDFLoss, RegLatentLoss, AttRepLoss
@@ -54,6 +54,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     # define encoder
     if param['encoder'] == 'big':
         encoder = EncoderBig(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+    elif param['encoder'] == 'small_pool':
+        encoder = EncoderPooled(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
     elif param['encoder'] == 'erfnet':
         encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
     elif param['encoder'] == 'pool':
