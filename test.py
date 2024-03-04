@@ -51,8 +51,9 @@ def from_pred_sdf_to_mesh(pred_sdf, grid_points, t=0):
     pcd_gpu = o3d.t.geometry.PointCloud(o3d_t)
     _, ind = pcd_gpu.remove_statistical_outliers(nb_neighbors=20, std_ratio=2.0)
     pcd_gpu_filt = pcd_gpu.select_by_mask(ind)
+    down_pcd_gpu = pcd_gpu_filt.voxel_down_sample(voxel_size=0.005)
 
-    hull_gpu = pcd_gpu_filt.compute_convex_hull()
+    hull_gpu = down_pcd_gpu.compute_convex_hull()
     hull = hull_gpu.to_legacy()
     hull.remove_degenerate_triangles()
     hull.remove_duplicated_triangles()
