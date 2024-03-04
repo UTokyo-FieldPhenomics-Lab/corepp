@@ -27,6 +27,8 @@ from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled
 import networks.utils as net_utils
 
 import open3d as o3d
+import open3d.core as o3c
+import torch.utils.dlpack
 import numpy as np
 
 import time
@@ -41,20 +43,24 @@ from utils import sdf2mesh, tensor_dict_2_float_dict
 torch.autograd.set_detect_anomaly(True)
 
 
-def from_pred_sdf_to_mesh(pred_sdf, grid_points, voxel_size, t=0):
-    keep_idx = pred_sdf<t
-    keep_points = grid_points[keep_idx.squeeze()]
-    pcd_grid = o3d.geometry.PointCloud()
-    pcd_grid.points = o3d.utility.Vector3dVector(keep_points.detach().cpu())
-    # mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd_grid, depth=3)
-    viewpoint_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd_grid, voxel_size=voxel_size)
-    hull, _ = pcd_grid.compute_convex_hull()
+def from_pred_sdf_to_mesh(pred_sdf, grid_points, t=0):
+    keep_idx = torch.lt(pred_sdf, t)
+    keep_points = grid_points[torch.squeeze(keep_idx)]
+
+    o3d_t = o3c.Tensor.from_dlpack(torch.utils.dlpack.to_dlpack(keep_points))
+    pcd_gpu = o3d.t.geometry.PointCloud(o3d_t)
+    _, ind = pcd_gpu.remove_statistical_outliers(nb_neighbors=20, std_ratio=2.0)
+    pcd_gpu_filt = pcd_gpu.select_by_mask(ind)
+
+    hull_gpu = pcd_gpu_filt.compute_convex_hull()
+    hull = hull_gpu.to_legacy()
     hull.remove_degenerate_triangles()
     hull.remove_duplicated_triangles()
     hull.remove_duplicated_vertices()
     hull.remove_non_manifold_edges()
     hull.remove_unreferenced_vertices()
-    return hull, viewpoint_grid
+
+    return hull
 
 def main_function(decoder, pretrain, cfg, latent_size):
     volumes = []
@@ -114,7 +120,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
     with torch.no_grad():
 
         for n_iter, item in enumerate(tqdm(iter(dataset))):
-            volume,marching_cubes_volume,vgrid_volume = 0,0,0
+            volume,marching_cubes_volume = 0,0
             box = tensor_dict_2_float_dict(item['bbox'])
             voxel_size = (box['xmax'] - box['xmin'])/grid_density
 
@@ -133,10 +139,9 @@ def main_function(decoder, pretrain, cfg, latent_size):
             deepsdf_input = torch.cat([latent.expand(grid_3d.points.size(0), -1),
                                         grid_3d.points], dim=1).to(latent.device, latent.dtype)
             pred_sdf = decoder(deepsdf_input)
-            mesh, vgrid = from_pred_sdf_to_mesh(pred_sdf, grid_3d.points, t=0, voxel_size=voxel_size)
+            mesh = from_pred_sdf_to_mesh(pred_sdf, grid_3d.points, t=0.005)
             if mesh.is_watertight():
                 volume = mesh.get_volume()
-                vgrid_volume = len(vgrid.get_voxels()) * voxel_size**3
             else:
                 print(item['frame_id'])
             # o3d.visualization.draw_geometries([hull, gt, cs], mesh_show_wireframe=True)
@@ -151,7 +156,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
             pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
             if pred_mesh.is_watertight():
                 marching_cubes_volume = pred_mesh.get_volume()
-            volumes.append([volume,marching_cubes_volume,vgrid_volume])
+            volumes.append([volume,marching_cubes_volume])
             # pred_mesh.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
             # pred_mesh = pred_mesh.filter_smooth_simple(number_of_iterations=2)
             # o3d.visualization.draw_geometries([pred_mesh.translate([.1,0,0]), gt, cs], mesh_show_wireframe=True)
