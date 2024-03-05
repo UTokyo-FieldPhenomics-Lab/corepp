@@ -32,8 +32,8 @@ def main(src, dst):
 if __name__ == "__main__":
   #%% Parse arguments
   parser = argparse.ArgumentParser(description="Prepare deep sdf training with measurement arm data")
-  parser.add_argument("src", help="data source where the point meshes are stored")
-  parser.add_argument("dst", help="destination folder")   
+  parser.add_argument('--src', type=str, default='./sfm_reconstructions', help="data source where the point meshes are stored")
+  parser.add_argument('--dst', type=str, default='./data/exp-name', help="destination folder")    
   args = parser.parse_args()
 
   main(args.src, args.dst)

@@ -1,8 +1,8 @@
 {
-  "Description" :  "Tomato Deepsdf Pretrain latent=32",
-  "DataSource" : "/home/federico/Datasets/shape_completion/potato/", 
-  "TrainSplit" : "/home/federico/Projects/shape_completion/deepsdf/experiments/splits/potato_train.json",
-  "TestSplit" : "/home/federico/Projects/shape_completion/deepsdf/experiments/splits/potato_test.json",
+  "Description" :  "Potato Deepsdf Pretrain latent=32",
+  "DataSource" : "/home/pieter/shape_completion/data", 
+  "TrainSplit" : "/home/pieter/shape_completion/deepsdf/experiments/splits/potato_train.json",
+  "TestSplit" : "/home/pieter/shape_completion/deepsdf/experiments/splits/potato_test.json",
   "NetworkArch" : "deep_sdf_decoder",
   "NetworkSpecs" : {
     "dims" : [ 512, 512, 512, 512, 512, 512, 512, 512 ],

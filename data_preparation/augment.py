@@ -17,7 +17,7 @@ SAVE = True
 if __name__ == "__main__":
   #%% Parse arguments
   parser = argparse.ArgumentParser(description="Data augmentation for DeepSDF pretraining")
-  parser.add_argument("json_config_filename", help="json filename with the parameters for augmentation")
+  parser.add_argument("--json_config_filename", help="json filename with the parameters for augmentation")
   parser.add_argument("--src", default=".",
                     help="Path to dataset root, where listdir will find p1,p2,p3,etc. Default: .")
   parser.add_argument("--dst", default="/tmp",

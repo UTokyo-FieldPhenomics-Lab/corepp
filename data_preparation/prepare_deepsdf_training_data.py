@@ -112,7 +112,8 @@ def show_pos_neg(pos: np.ndarray, neg: np.ndarray, swl_points: np.ndarray = None
 if __name__ == "__main__":
   #%% Parse arguments
   parser = argparse.ArgumentParser(description="Prepare deep sdf training with measurement arm data")
-  parser.add_argument("source_dir", help="filename for the fruit pointcloud, either  .swl file from the measurement arm or .ply pointcloud file")
+  parser.add_argument("--src", default='./data/exp-name', type=str, 
+                      help="name of the folder containing the point clouds processed by 'pcd_from_sfm.py' (either .swl files from the measurement arm or .ply pointcloud files)")
   parser.add_argument("--no_of_samples", default=100000, type=int,
                       help="Number of positive/negative samples, default: 100.000")
                       
@@ -137,10 +138,10 @@ if __name__ == "__main__":
   
     
   #%% Load
-  print('Load %s ...' % args.source_dir, flush=True)
-  for fname in os.listdir(args.source_dir):
+  print('Load %s ...' % args.src, flush=True)
+  for fname in os.listdir(args.src):
     
-    path_to_file = os.path.join(args.source_dir, fname, 'laser/fruit.ply')
+    path_to_file = os.path.join(args.src, fname, 'laser/fruit.ply')
     # filename, file_extension = os.path.splitext(path_to_file)
 
     swl_points = o3d.io.read_point_cloud(path_to_file)
@@ -195,7 +196,7 @@ if __name__ == "__main__":
     neg = neg[np.random.choice(neg.shape[0], args.no_of_samples, replace=False), :]
     
     #%% Save
-    output_filename = os.path.join(args.source_dir, fname, 'laser/samples.npz')
+    output_filename = os.path.join(args.src, fname, 'laser/samples.npz')
     print('Save to %s ...' % output_filename, flush=True)
     np.savez(os.path.join(output_filename), pos=pos, neg=neg)
 
