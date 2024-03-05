@@ -64,6 +64,40 @@
             ]
         },
         {
+            "name": "Python: organize_data.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/organize_data.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--src", "/mnt/data/PieterBlok/Potato/Data/3DPotatoTwin/1_rgbd/1_image/",
+                "--dst", "./data/potato/",
+            ]
+        },
+        {
+            "name": "Python: copy_file.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/copy_file.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--src", "./data/potato_example/dataset.json",
+                "--dst", "./data/potato",
+                "--subdir", "",
+                // "--src", "./data/potato_example/tf/tf.npz",
+                // "--dst", "./data/potato",
+                // "--subdir", "tf",
+                // "--src", "./data/potato_example/tf/bounding_box.npz",
+                // "--dst", "./data/potato",
+                // "--subdir", "tf",
+                // "--src", "./data/potato_example/realsense/intrinsic.json",
+                // "--dst", "./data/potato",
+                // "--subdir", "realsense",
+            ]
+        },
+        {
             "name": "Python: train.py",
             "type": "debugpy",
             "request": "launch",

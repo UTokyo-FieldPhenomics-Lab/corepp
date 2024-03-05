@@ -1,0 +1,22 @@
+{
+    "width": 1280,
+    "height": 720,
+    "intrinsic_matrix": [
+        653.7627563476562,
+        0,
+        0,
+        0,
+        652.1158447265625,
+        0,
+        643.483642578125,
+        366.064697265625,
+        1
+    ],
+	"color_format" : "RGB8",
+	"depth_format" : "Z16",
+	"depth_scale" : 999.99993896484375,
+	"device_name" : "Intel RealSense D405",
+	"fps" : 30.0,
+	"serial_number" : "021222070560",
+	"stream_length_usec" : 19271594
+}
