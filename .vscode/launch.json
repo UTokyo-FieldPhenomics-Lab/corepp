@@ -71,7 +71,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--cfg", "./configs/super3d.json",
+                "--cfg", "./configs/super3d_small.json",
                 "--experiment", "./deepsdf/experiments/potato/",
             ]
         },
@@ -96,7 +96,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--cfg", "./configs/super3d.json",
+                "--cfg", "./configs/super3d_small.json",
                 "--experiment", "./deepsdf/experiments/potato/",
             ]
         },

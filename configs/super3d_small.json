@@ -1,9 +1,9 @@
 {
-    "species" : "Potato",
-    "data_dir" : "/home/federico/Datasets/shape_completion/potato/Potato/",
-    "checkpoint_dir" : "/home/federico/Datasets/shape_completion/potato/logs/checkpoints/",
+    "species" : "potato",
+    "data_dir" : "/home/pieter/shape_completion/data/potato/",
+    "checkpoint_dir" : "/home/pieter/shape_completion/potato/logs/checkpoints/",
     "checkpoint_file": "_super3d_small_best_val.pt",
-    "log_dir": "/home/federico/Datasets/shape_completion/potato/logs/runs/",
+    "log_dir": "/home/pieter/shape_completion/potato/logs/runs/",
     "encoder" : "small_pool",
     "batch_size" : 16,
     "image_size" : 250,
