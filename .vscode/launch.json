@@ -1,0 +1,127 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Python: pcd_from_sfm.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/pcd_from_sfm.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--src", "/mnt/data/PieterBlok/Potato/Data/3d_scans/models",
+                "--dst", "./data/potato",
+            ]
+        },
+        {
+            "name": "Python: augment.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/augment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--json_config_filename", "./data_preparation/augment.json",
+                "--src", "./data/potato",
+                "--dst", "./data/potato_augmented",
+                // "--show_augmented_pointcloud"
+            ]
+        },
+        {
+            "name": "Python: prepare_deepsdf_training_data.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/prepare_deepsdf_training_data.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--src", "./data/potato",
+                // "--src", "./data/potato_augmented",
+                // "--show_input_points",
+                // "--show_sdf_points",
+            ]
+        },
+        {
+            "name": "Python: train_deep_sdf.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_deep_sdf.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--experiment", "./deepsdf/experiments/potato",
+            ]
+        },
+        {
+            "name": "Python: train.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--cfg", "./configs/super3d.json",
+                "--experiment", "./deepsdf/experiments/potato/",
+            ]
+        },
+        {
+            "name": "Python: reconstruct_deep_sdf.py", //only for deepsdf without encoder
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/reconstruct_deep_sdf.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--experiment", "./deepsdf/experiments/potato",
+                "--data", "./data",
+                "--split", "./deepsdf/experiments/splits/potato_train_without_augmentations.json",
+            ]
+        },
+        {
+            "name": "Python: test.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--cfg", "./configs/super3d.json",
+                "--experiment", "./deepsdf/experiments/potato/",
+            ]
+        },
+        {
+            "name": "Python: explore_latents.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/explore_latents.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--experiment", "./deepsdf/experiments/potato/",
+            ]
+        },
+        {
+            "name": "Python: compute_reconstruction_metrics.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/compute_reconstruction_metrics.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--ground-truth-dir", "./data/potato/",
+                "--prediction-dir", "./deepsdf/experiments/potato/Reconstructions/3000/Meshes/complete/train",
+            ]
+        },
+    ]
+}
