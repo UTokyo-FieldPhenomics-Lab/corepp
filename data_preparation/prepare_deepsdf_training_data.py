@@ -140,77 +140,77 @@ if __name__ == "__main__":
   #%% Load
   print('Load %s ...' % args.src, flush=True)
   for fname in os.listdir(args.src):
-    
-    path_to_file = os.path.join(args.src, fname, 'laser/fruit.ply')
-    # filename, file_extension = os.path.splitext(path_to_file)
+    if not fname.endswith(".json"):
+      path_to_file = os.path.join(args.src, fname, 'laser/fruit.ply')
+      # filename, file_extension = os.path.splitext(path_to_file)
 
-    swl_points = o3d.io.read_point_cloud(path_to_file)
-    points = np.asarray(swl_points.points)
-    viewpoints = points + np.asarray(swl_points.normals)
-    swl_points = np.concatenate([points, viewpoints], axis=1)
+      swl_points = o3d.io.read_point_cloud(path_to_file)
+      points = np.asarray(swl_points.points)
+      viewpoints = points + np.asarray(swl_points.normals)
+      swl_points = np.concatenate([points, viewpoints], axis=1)
 
+        
+      #%% Show
+      if args.show_input_points:
+        # import ipdb; ipdb.set_trace()
+        show_swl_points(swl_points, 'All loaded points (green: points, red: viewpoints')
       
-    #%% Show
-    if args.show_input_points:
-      # import ipdb; ipdb.set_trace()
-      show_swl_points(swl_points, 'All loaded points (green: points, red: viewpoints')
-    
-    #%% Cut out 
-    if args.bounding_box:
-      print('Cutout object ...', flush=True)
-      # bbox_min=args.bounding_box[0:3]
-      # bbox_max=args.bounding_box[3:6]
+      #%% Cut out 
+      if args.bounding_box:
+        print('Cutout object ...', flush=True)
+        # bbox_min=args.bounding_box[0:3]
+        # bbox_max=args.bounding_box[3:6]
+        
+        bbox_min=np.array([-1, -1.0, 0.34])
+        bbox_max=np.array([ 1, 1, 1.0])
+        swl_points = swl_points[(swl_points[:,0]>=bbox_min[0]) & (swl_points[:,0]<=bbox_max[0]) & 
+                                (swl_points[:,1]>=bbox_min[1]) & (swl_points[:,1]<=bbox_max[1]) & 
+                                (swl_points[:,2]>=bbox_min[2]) & (swl_points[:,2]<=bbox_max[2]), : ]
+        
+        if args.show_truncated_points:
+          show_swl_points(swl_points, 'Points after applying bounding box')
+  
+      #%% Removing noise
+      if args.remove_noise:
+        print('Remove noise ...', flush=True)
+        swl_pcd = np2o3d(swl_points, normals=True)
+        swl_pcd = swl_pcd.voxel_down_sample(voxel_size=0.001)
+        o3d.visualization.draw_geometries([swl_pcd])
+        cl, ind = swl_pcd.remove_statistical_outlier(nb_neighbors=50,
+                                                            std_ratio=.5)
+        o3d.visualization.draw_geometries([cl])
       
-      bbox_min=np.array([-1, -1.0, 0.34])
-      bbox_max=np.array([ 1, 1, 1.0])
-      swl_points = swl_points[(swl_points[:,0]>=bbox_min[0]) & (swl_points[:,0]<=bbox_max[0]) & 
-                              (swl_points[:,1]>=bbox_min[1]) & (swl_points[:,1]<=bbox_max[1]) & 
-                              (swl_points[:,2]>=bbox_min[2]) & (swl_points[:,2]<=bbox_max[2]), : ]
+        swl_points = np.asarray(cl.points)
+        swl_viewpoint = np.asarray(cl.normals)
       
-      if args.show_truncated_points:
-        show_swl_points(swl_points, 'Points after applying bounding box')
- 
-    #%% Removing noise
-    if args.remove_noise:
-      print('Remove noise ...', flush=True)
-      swl_pcd = np2o3d(swl_points, normals=True)
-      swl_pcd = swl_pcd.voxel_down_sample(voxel_size=0.001)
-      o3d.visualization.draw_geometries([swl_pcd])
-      cl, ind = swl_pcd.remove_statistical_outlier(nb_neighbors=50,
-                                                          std_ratio=.5)
-      o3d.visualization.draw_geometries([cl])
-    
-      swl_points = np.asarray(cl.points)
-      swl_viewpoint = np.asarray(cl.normals)
-    
-      swl_points = np.hstack((swl_points, swl_viewpoint))
-      # np.savetxt("/home/federico/Datasets/swl_points_test_leaf.txt", swl_points)
+        swl_points = np.hstack((swl_points, swl_viewpoint))
+        # np.savetxt("/home/federico/Datasets/swl_points_test_leaf.txt", swl_points)
 
-    #%% Generate sdf samples
-    print('Generate sdf samples ...', flush=True)
-    no_samples_per_point = int(np.ceil(args.no_of_samples/swl_points.shape[0]))
-    (pos,neg)  = generate_tsdf_samples(swl_points, no_samples_per_point=no_samples_per_point,
-                            tsdf_positive=args.tsdf_positive, tsdf_negative=args.tsdf_negative)
-    # Truncate to number of samples
-    pos = pos[np.random.choice(pos.shape[0], args.no_of_samples, replace=False), :]
-    neg = neg[np.random.choice(neg.shape[0], args.no_of_samples, replace=False), :]
-    
-    #%% Save
-    output_filename = os.path.join(args.src, fname, 'laser/samples.npz')
-    print('Save to %s ...' % output_filename, flush=True)
-    np.savez(os.path.join(output_filename), pos=pos, neg=neg)
+      #%% Generate sdf samples
+      print('Generate sdf samples ...', flush=True)
+      no_samples_per_point = int(np.ceil(args.no_of_samples/swl_points.shape[0]))
+      (pos,neg)  = generate_tsdf_samples(swl_points, no_samples_per_point=no_samples_per_point,
+                              tsdf_positive=args.tsdf_positive, tsdf_negative=args.tsdf_negative)
+      # Truncate to number of samples
+      pos = pos[np.random.choice(pos.shape[0], args.no_of_samples, replace=False), :]
+      neg = neg[np.random.choice(neg.shape[0], args.no_of_samples, replace=False), :]
+      
+      #%% Save
+      output_filename = os.path.join(args.src, fname, 'laser/samples.npz')
+      print('Save to %s ...' % output_filename, flush=True)
+      np.savez(os.path.join(output_filename), pos=pos, neg=neg)
 
-    #%% Saving pcd for inspection
-    # pcd_fname = output_filename.replace('.npz','.ply')
-    # pcd = np2o3d(swl_points)
-    # pcd.translate(-pcd.get_center())
-    # pcd.estimate_normals()
-    # pcd.orient_normals_towards_camera_location([0,0,0])
-    # pcd.normals = o3d.utility.Vector3dVector(-np.asarray(pcd.normals))
-    # o3d.io.write_point_cloud(pcd_fname, pcd)
-    
-    #%% Show result
-    if args.show_sdf_points:
-      show_pos_neg(pos, neg, swl_points)
+      #%% Saving pcd for inspection
+      # pcd_fname = output_filename.replace('.npz','.ply')
+      # pcd = np2o3d(swl_points)
+      # pcd.translate(-pcd.get_center())
+      # pcd.estimate_normals()
+      # pcd.orient_normals_towards_camera_location([0,0,0])
+      # pcd.normals = o3d.utility.Vector3dVector(-np.asarray(pcd.normals))
+      # o3d.io.write_point_cloud(pcd_fname, pcd)
+      
+      #%% Show result
+      if args.show_sdf_points:
+        show_pos_neg(pos, neg, swl_points)
 
 

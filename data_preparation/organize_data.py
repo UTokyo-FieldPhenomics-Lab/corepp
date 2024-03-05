@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Author: Pieter Blok
+# @Date:   2024-03-05 06:55:15
+# @Last Modified by:   Pieter Blok
+# @Last Modified time: 2024-03-05 09:04:19
 import argparse
 import os 
 import cv2
@@ -14,8 +19,8 @@ def main(src, dst):
         id_folder_path = os.path.join(src,potato_id)
         fnames = [f for f in os.listdir(id_folder_path) if 'rgb' in f and 'png' in f]
         for name in fnames:
-            img_path = os.path.join(src, id_folder_path, name)
-            dep_path = os.path.join(src, id_folder_path, img_path.replace('_rgb_','_depth_'))
+            img_path = os.path.join(id_folder_path, name)
+            dep_path = img_path.replace('_rgb_','_depth_')
 
             rgba = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
             img = rgba[:,:,:-1]
@@ -45,7 +50,7 @@ def main(src, dst):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare data for training the encoder")
-    parser.add_argument('--src', type=str, default='./3DPotatoTwin/1_rgbd/1_image/', help="data source where the point meshes are stored")
+    parser.add_argument('--src', type=str, default='./data/3DPotatoTwin/1_rgbd/1_image/', help="data source where the point meshes are stored")
     parser.add_argument('--dst', type=str, default='./data/potato/', help="destination folder")    
     args = parser.parse_args()
 

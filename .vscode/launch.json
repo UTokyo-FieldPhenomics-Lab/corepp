@@ -13,6 +13,18 @@
             "justMyCode": true
         },
         {
+            "name": "Python: unzip.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/unzip.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--src", "/home/pieter/Downloads",
+                "--dst", "./data",
+            ]
+        },
+        {
             "name": "Python: pcd_from_sfm.py",
             "type": "debugpy",
             "request": "launch",
@@ -20,7 +32,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--src", "/mnt/data/PieterBlok/Potato/Data/3d_scans/models",
+                "--src", "./data/3DPotatoTwin/2_SfM/1_mesh/",
                 "--dst", "./data/potato",
             ]
         },
@@ -71,7 +83,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--src", "/mnt/data/PieterBlok/Potato/Data/3DPotatoTwin/1_rgbd/1_image/",
+                "--src", "./data/3DPotatoTwin/1_rgbd/1_image/",
                 "--dst", "./data/potato/",
             ]
         },
