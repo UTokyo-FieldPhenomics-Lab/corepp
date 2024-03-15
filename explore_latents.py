@@ -147,7 +147,7 @@ def main_function(decoder, latent_size):
 
     # some variables that will be later added to a config
     device = 'cuda'
-    latent_trained = '/home/federico/Projects/magistri2022icra/shape_completion/deepsdf/experiments/sweetpeppers_latent12_sphere_reg/LatentCodes/latest.pth'
+    latent_trained = '/home/pieter/shape_completion/deepsdf/experiments/potato/LatentCodes/latest.pth'
     latents = torch.load(latent_trained)['latent_codes']['weight']
 
 
@@ -228,6 +228,13 @@ if __name__ == "__main__":
         + "experiment specifications in 'specs.json', and logging will be "
         + "done in this directory as well.",
     )
+    arg_parser.add_argument(
+        "--checkpoint_decoder",
+        "-c",
+        dest="checkpoint",
+        default="3500",
+        help="The checkpoint weights to use. This should be a number indicated an epoch",
+    )
 
 
     deep_sdf.add_common_args(arg_parser)
@@ -242,7 +249,7 @@ if __name__ == "__main__":
     arch = __import__("deepsdf.networks." + specs["NetworkArch"], fromlist=["Decoder"])
     decoder = arch.Decoder(latent_size, **specs["NetworkSpecs"]).cuda()
 
-    path = args.experiment_directory + '/ModelParameters/latest.pth' 
+    path = os.path.join(args.experiment_directory, 'ModelParameters', args.checkpoint) + '.pth' 
     model_state = net_utils.load_without_parallel(torch.load(path))
     decoder.load_state_dict(model_state)
     decoder = net_utils.set_require_grad(decoder, False)

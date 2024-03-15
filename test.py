@@ -193,6 +193,12 @@ if __name__ == "__main__":
         required=True,
         help="Config file for the outer network.",
     )
+    arg_parser.add_argument(
+        "--checkpoint_decoder",
+        dest="checkpoint",
+        default="3500",
+        help="The checkpoint weights to use. This should be a number indicated an epoch",
+    )
 
     deep_sdf.add_common_args(arg_parser)
 
@@ -206,12 +212,14 @@ if __name__ == "__main__":
     arch = __import__("deepsdf.networks." + specs["NetworkArch"], fromlist=["Decoder"])
     decoder = arch.Decoder(latent_size, **specs["NetworkSpecs"]).cuda()
 
-    path = args.experiment_directory + '/ModelParameters/latest.pth'
+    path = os.path.join(args.experiment_directory, 'ModelParameters', args.checkpoint) + '.pth'
     model_state = net_utils.load_without_parallel(torch.load(path))
     decoder.load_state_dict(model_state)
     decoder = net_utils.set_require_grad(decoder, False)
 
+    pretrain_path = os.path.join(args.experiment_directory, 'Reconstructions', args.checkpoint, 'Codes', 'complete')
+
     main_function(decoder=decoder,
-                  pretrain=args.experiment_directory,
+                  pretrain=pretrain_path,
                   cfg=args.cfg,
                   latent_size=latent_size)

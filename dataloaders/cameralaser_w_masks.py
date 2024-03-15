@@ -24,6 +24,66 @@ mpl.rcParams['image.cmap'] = 'gray'
 NAME = '0'
 
 
+## Histogram filter for the depth image
+def histogram_filtering(dimg, mask, max_depth_range=50, max_depth_contribution=0.05):
+    mask = mask.astype(np.uint8)
+    mask_bool = mask.astype(bool)
+    
+    z = np.expand_dims(dimg, axis=2)
+    z_mask = z[mask_bool]
+    z_mask_filtered = z_mask[z_mask != 0]
+
+    if z_mask_filtered.size > 1: 
+        z_mask_filtered_range = np.max(z_mask_filtered)-np.min(z_mask_filtered)
+
+        if (z_mask_filtered_range > max_depth_range):
+            hist, bin_edges = np.histogram(z_mask_filtered, density=False) 
+            hist_peak = np.argmax(hist)
+            lb = bin_edges[hist_peak]
+            ub = bin_edges[hist_peak+1]
+
+            bc = np.bincount(np.absolute(z_mask_filtered.astype(np.int64)))
+            peak_id = np.argmax(bc)
+
+            if peak_id > int(lb) and peak_id < int(ub):
+                peak_id = peak_id
+            else:
+                bc_clip = bc[int(lb):int(ub)]
+                peak_id = int(lb) + np.argmax(bc_clip)
+
+            pixel_counts = np.zeros((10), dtype=np.int64)
+
+            for j in range(10):
+                lower_bound = peak_id-(max_depth_range - (j * 10))
+                upper_bound = lower_bound + max_depth_range
+                z_final = z_mask_filtered[np.where(np.logical_and(z_mask_filtered >= lower_bound, z_mask_filtered <= upper_bound))]
+                pixel_counts[j] = z_final.size
+
+            pix_id = np.argmax(pixel_counts)
+            lower_bound = peak_id-(max_depth_range - (pix_id * 10))
+            upper_bound = lower_bound + max_depth_range
+            z_final = z_mask_filtered[np.where(np.logical_and(z_mask_filtered >= lower_bound, z_mask_filtered <= upper_bound))]
+            
+        else:
+            z_final = z_mask_filtered
+
+        hist_f, bin_edges_f = np.histogram(z_final, density=False)
+        norm1 = hist_f / np.sum(hist_f)
+
+        sel1 = bin_edges_f[np.where(norm1 >= max_depth_contribution)]
+        sel2 = bin_edges_f[np.where(norm1 >= max_depth_contribution)[0]+1]
+        edges = np.concatenate((sel1,sel2), axis=0)
+        final_bins = np.unique(edges)
+ 
+        z_min = np.min(final_bins)
+        z_max = np.max(final_bins)
+    else:
+        z_min = np.min(z_mask_filtered)
+        z_max = np.max(z_mask_filtered)
+    
+    return z_min, z_max
+
+
 def visualize_sdf(sdf_data):
     xyz = sdf_data[:, :-1]
     val = sdf_data[:, -1]
@@ -145,7 +205,6 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
     def get_latents_dict(self, path):
         "create dictionary of pairs fruit_id:latent given pretrained model"
         latent_dictionary = {}
-        path = os.path.join(path, 'Reconstructions/3000/Codes/complete')
         for fname in os.listdir(path):
             latent = torch.load(os.path.join(path,fname))
             key = fname[:-4]
@@ -176,7 +235,6 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         max_i = indices[0].max() + offset
         max_j = indices[1].max() + offset
 
-        # fucking python with negative indexes
         if min_i < 0: min_i = 0
         if min_j < 0: min_j = 0
 
@@ -184,6 +242,14 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         depth = depth[min_i:max_i, min_j:max_j]
         mask = mask[min_i:max_i, min_j:max_j]
 
+        ## mask the RGB and depth image and apply histogram filtering on the depth image
+        z_min, z_max = histogram_filtering(depth, mask, 50, 0.05)
+        depth[depth < z_min] = 0
+        depth[depth > z_max] = 0
+        depth = depth * mask
+        mask = np.clip(depth, 0.0, 1.0)
+        rgb = rgb * np.expand_dims(mask.astype(bool), 2)
+        
         w = max_i - min_i
         h = max_j - min_j
 

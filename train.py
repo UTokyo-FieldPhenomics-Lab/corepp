@@ -213,45 +213,43 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                                                         species=param["species"]
                                                         )
 
-                val_dataset = DataLoader(cl_dataset, batch_size=1, shuffle=False)
+                val_dataset = DataLoader(val_cl_dataset, batch_size=1, shuffle=False)
 
                 cd_val = 0
                 print('\nvalidation...')
-                for jdx, item in enumerate(tqdm(iter(val_dataset))):
+                for _, item in enumerate(tqdm(iter(val_dataset))):
+                    val_rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
 
-                    if jdx % 10 == 0:
-                        val_rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
+                    # encoding
+                    latent_val = encoder(val_rgbd)
+                    grid_val = Grid3D(grid_density, device, precision, bbox=box)
+                    dec_input_val = torch.cat([latent_val.expand(grid.points.size(0), -1), grid_val.points], dim=1)
 
-                        # encoding
-                        latent_val = encoder(val_rgbd)
-                        grid_val = Grid3D(grid_density, device, precision, bbox=box)
-                        dec_input_val = torch.cat([latent_val.expand(grid.points.size(0), -1), grid_val.points], dim=1)
+                    pred_sdf_val = decoder(dec_input_val)
 
-                        pred_sdf_val = decoder(dec_input_val)
+                    voxel_size = (box['xmax'] - box['xmin'])/grid_density
+                    pred_mesh_val = sdf2mesh(pred_sdf_val, voxel_size, grid_density)
+                    pred_mesh_val.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
+                    
 
-                        voxel_size = (box['xmax'] - box['xmin'])/grid_density
-                        pred_mesh_val = sdf2mesh(pred_sdf_val, voxel_size, grid_density)
-                        pred_mesh_val.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
-                       
-    
-                        gt_pcd = o3d.io.read_point_cloud(os.path.join(param["data_dir"], item['fruit_id'][0], 'laser/fruit.ply'))
-                        pt_pcd = pred_mesh_val.sample_points_uniformly(1000000)
-                        dist_pt_2_gt = np.asarray(pt_pcd.compute_point_cloud_distance(gt_pcd))
-                        dist_gt_2_pt = np.asarray(gt_pcd.compute_point_cloud_distance(pt_pcd))
-                        d = (np.mean(dist_gt_2_pt) + np.mean(dist_pt_2_gt))/2                    
-                        cd_val += d
-                       
-                        pred_mesh_val = pred_mesh_val.filter_smooth_simple(10)
-                        pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)
-                        pred_set = o3d.geometry.LineSet(pred_mesh_val_lines)
+                    gt_pcd = o3d.io.read_point_cloud(os.path.join(param["data_dir"], item['fruit_id'][0], 'laser/fruit.ply'))
+                    pt_pcd = pred_mesh_val.sample_points_uniformly(1000000)
+                    dist_pt_2_gt = np.asarray(pt_pcd.compute_point_cloud_distance(gt_pcd))
+                    dist_gt_2_pt = np.asarray(gt_pcd.compute_point_cloud_distance(pt_pcd))
+                    d = (np.mean(dist_gt_2_pt) + np.mean(dist_pt_2_gt))/2                    
+                    cd_val += d
+                    
+                    pred_mesh_val = pred_mesh_val.filter_smooth_simple(10)
+                    pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)
+                    pred_set = o3d.geometry.LineSet(pred_mesh_val_lines)
 
-                        # if e == param["epoch"] - 1:
-                        #     o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0)))])
+                    # if e == param["epoch"] - 1:
+                    #     o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0)))])
 
-                        if args.overfit: break                        
+                    if args.overfit: break                        
 
-                        # o3d.visualization.draw_geometries([gt_pcd,pred_mesh_val.translate(np.array((0.1, 0, 0)))])
-                        # import ipdb;ipdb.set_trace()
+                    # o3d.visualization.draw_geometries([gt_pcd,pred_mesh_val.translate(np.array((0.1, 0, 0)))])
+                    # import ipdb;ipdb.set_trace()
 
                 cd_val = cd_val /  len(val_cl_dataset)
                 print('score: ', cd_val)
@@ -305,6 +303,12 @@ if __name__ == "__main__":
     )
 
     arg_parser.add_argument(
+        "--checkpoint_decoder",
+        dest="checkpoint",
+        default="3500",
+        help="The checkpoint weights to use. This should be a number indicated an epoch",
+    )
+    arg_parser.add_argument(
         "--decoder",
         dest="decoder",
 	    action='store_true',
@@ -322,13 +326,15 @@ if __name__ == "__main__":
     arch = __import__("deepsdf.networks." + specs["NetworkArch"], fromlist=["Decoder"])
     decoder = arch.Decoder(latent_size, **specs["NetworkSpecs"]).cuda()
 
-    path = args.experiment_directory + '/ModelParameters/latest.pth'
+    path = os.path.join(args.experiment_directory, 'ModelParameters', args.checkpoint) + '.pth'
     model_state = net_utils.load_without_parallel(torch.load(path))
     decoder.load_state_dict(model_state)
     decoder = net_utils.set_require_grad(decoder, True)
 
+    pretrain_path = os.path.join(args.experiment_directory, 'Reconstructions', args.checkpoint, 'Codes', 'complete')
+
     main_function(decoder=decoder,
-                  pretrain=args.experiment_directory,
+                  pretrain=pretrain_path,
                   cfg=args.cfg,
                   latent_size=latent_size,
                   trunc_val=specs['ClampingDistance'],

@@ -130,12 +130,11 @@ if __name__ == "__main__":
         + "files to use for reconstruction",
     )
     arg_parser.add_argument(
-        "--checkpoint",
+        "--checkpoint_decoder",
         "-c",
         dest="checkpoint",
-        default="latest",
-        help="The checkpoint weights to use. This can be a number indicated an epoch "
-        + "or 'latest' for the latest weights (this is the default)",
+        default="3500",
+        help="The checkpoint weights to use. This should be a number indicated an epoch",
     )
     arg_parser.add_argument(
         "--data",
@@ -181,10 +180,10 @@ if __name__ == "__main__":
     
     deep_sdf.configure_logging(args)
 
-    def load_latents(exp_dir):
+    def load_latents(exp_dir, checkpoint):
         indices = []
         latents = []
-        latents_trained = torch.load(exp_dir+'/LatentCodes/latest.pth')
+        latents_trained = torch.load(os.path.join(exp_dir, 'LatentCodes', checkpoint) + '.pth')
         for idx, l in enumerate(latents_trained['latent_codes']['weight']):
             latents.append(torch.clone(l))
             indices.append(idx)
@@ -201,7 +200,7 @@ if __name__ == "__main__":
         print('stats: ', mean, var)
         return mean, var
 
-    lat_vecs_trained, indices_trained = load_latents(args.experiment_directory)
+    lat_vecs_trained, indices_trained = load_latents(args.experiment_directory, args.checkpoint)
     emp_mean, emp_var = empirical_stat(lat_vecs_trained, indices_trained)
 
     specs_filename = os.path.join(args.experiment_directory, "specs.json")

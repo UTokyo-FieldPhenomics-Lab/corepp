@@ -15,7 +15,7 @@
     "lambda_rendering": 1,
     "lambda_sdf": 1,
     "checkpoint_frequency" : 10,
-    "validation_frequency" : 50,
+    "validation_frequency" : 10,
     "supervised_3d" : true,
     "kl_divergence": false,
     "contrastive": false,
