@@ -110,18 +110,6 @@
             ]
         },
         {
-            "name": "Python: train.py",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/train.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "args": [
-                "--cfg", "./configs/super3d_small.json",
-                "--experiment", "./deepsdf/experiments/potato/",
-            ]
-        },
-        {
             "name": "Python: reconstruct_deep_sdf.py", //only for deepsdf without encoder
             "type": "debugpy",
             "request": "launch",
@@ -131,30 +119,9 @@
             "args": [
                 "--experiment", "./deepsdf/experiments/potato",
                 "--data", "./data",
-                "--split", "./deepsdf/experiments/splits/potato_train_without_augmentations.json",
-            ]
-        },
-        {
-            "name": "Python: test.py",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/test.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "args": [
-                "--cfg", "./configs/super3d_small.json",
-                "--experiment", "./deepsdf/experiments/potato/",
-            ]
-        },
-        {
-            "name": "Python: explore_latents.py",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/explore_latents.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "args": [
-                "--experiment", "./deepsdf/experiments/potato/",
+                "--checkpoint_decoder", "3500",
+                "--split", "./deepsdf/experiments/splits/potato_val.json",
+                // "--split", "./deepsdf/experiments/splits/potato_train_without_augmentations.json",
             ]
         },
         {
@@ -166,7 +133,49 @@
             "justMyCode": false,
             "args": [
                 "--ground-truth-dir", "./data/potato/",
-                "--prediction-dir", "./deepsdf/experiments/potato/Reconstructions/3000/Meshes/complete/train",
+                "--prediction-dir", "./deepsdf/experiments/potato/Reconstructions/5000/Meshes/complete/val",
+            ]
+        },
+        {
+            "name": "Python: explore_latents.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/explore_latents.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--experiment", "./deepsdf/experiments/potato/",
+                "--checkpoint_decoder", "3500",
+            ]
+        },
+        // before training the encoder: run the reconstruct_deep_sdf.py for train, validation and test set:
+        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 3500 --split ./deepsdf/experiments/splits/potato_train_without_augmentations.json
+        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 3500 --split ./deepsdf/experiments/splits/potato_val.json
+        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 3500 --split ./deepsdf/experiments/splits/potato_test.json
+        {
+            "name": "Python: train.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--cfg", "./configs/super3d.json",
+                "--experiment", "./deepsdf/experiments/potato/",
+                "--checkpoint_decoder", "3500",
+            ]
+        },
+        {
+            "name": "Python: test.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--cfg", "./configs/super3d.json",
+                "--experiment", "./deepsdf/experiments/potato/",
+                "--checkpoint_decoder", "3500",
             ]
         },
     ]
