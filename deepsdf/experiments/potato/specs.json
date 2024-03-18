@@ -17,7 +17,7 @@
     },
   "CodeLength" : 32,
   "NumEpochs" : 5001,
-  "SnapshotFrequency" : 500,
+  "SnapshotFrequency" : 250,
   "AdditionalSnapshots" : [ 0, 500, 1500],
   "LearningRateSchedule" : [
     {
