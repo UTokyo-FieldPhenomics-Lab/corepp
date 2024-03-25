@@ -20,7 +20,7 @@ from sdfrenderer.grid import Grid3D
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
 from dataloaders.transforms import Pad
 
-from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled
+from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, PointCloudEncoder
 import networks.utils as net_utils
 
 from loss import KLDivLoss, SuperLoss, SDFLoss, RegLatentLoss, AttRepLoss
@@ -53,15 +53,17 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
     # define encoder
     if param['encoder'] == 'big':
-        encoder = EncoderBig(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = EncoderBig(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'small_pool':
-        encoder = EncoderPooled(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = EncoderPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'erfnet':
-        encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'pool':
-        encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
+    elif param['encoder'] == 'point_cloud':
+        encoder = PointCloudEncoder(in_channels=3, out_channels=latent_size).to(device)
     else:
-        encoder = Encoder(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = Encoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
 
     #############################
     # TRAINING LOOP STARTS HERE #
@@ -71,12 +73,13 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     decoder.to(device)
 
     # transformations
-    tfs = [Pad(size=param["image_size"])]
+    tfs = [Pad(size=param["input_size"])]
     tf = Compose(tfs)
 
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
                                         tf=tf, pretrain=pretrain,
-                                        pad_size=param["image_size"],
+                                        pad_size=param["input_size"],
+                                        detection_input=param["detection_input"],
                                         supervised_3d=param["supervised_3d"],
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
@@ -111,10 +114,13 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
             loss = 0
 
             # unpacking inputs
-            rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
+            if param['encoder'] != 'point_cloud':
+                encoder_input = torch.cat((item['rgb'], item['depth']), 1).to(device)
+            else:
+                encoder_input = item['partial_pcd'].permute(0, 2, 1).to(device) ## be aware: the current partial pcd is not registered to the target pcd!
 
             # encoding
-            latent_batch_unnormd = encoder(rgbd)
+            latent_batch_unnormd = encoder(encoder_input)
             norms_batch = torch.linalg.norm(latent_batch_unnormd, dim=1)
 
             latent_batch = latent_batch_unnormd #/ norms_batch.unsqueeze(dim=1)
@@ -159,7 +165,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                 logging_string += ' -- loss reg: {}'.format(loss_reg.item())
 
             # creating a Grid3D for each latent in the batch
-            current_batch_size = rgbd.shape[0]
+            current_batch_size = encoder_input.shape[0]
 
             box = tensor_dict_2_float_dict(item['bbox'])
 
@@ -204,7 +210,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
                 val_cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
                                                         tf=tf, pretrain=pretrain,
-                                                        pad_size=param["image_size"],
+                                                        pad_size=param["input_size"],
+                                                        detection_input=param["detection_input"],
                                                         supervised_3d=False,
                                                         sdf_loss=param["3D_loss"],
                                                         grid_density=param["grid_density"],
@@ -220,10 +227,13 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                 print('\nvalidation...')
                 for _, item in enumerate(tqdm(iter(val_dataset))):
                     try:
-                        val_rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
+                        if param['encoder'] != 'point_cloud':
+                            encoder_input = torch.cat((item['rgb'], item['depth']), 1).to(device)
+                        else:
+                            encoder_input = item['partial_pcd'].permute(0, 2, 1).to(device)
 
                         # encoding
-                        latent_val = encoder(val_rgbd)
+                        latent_val = encoder(encoder_input)
                         grid_val = Grid3D(grid_density, device, precision, bbox=box)
                         dec_input_val = torch.cat([latent_val.expand(grid.points.size(0), -1), grid_val.points], dim=1)
 

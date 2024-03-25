@@ -23,6 +23,13 @@ mpl.rcParams['image.cmap'] = 'gray'
 
 NAME = '0'
 
+## load intrinsics file
+def load_intrinsics(intrinsics_file):
+    with open(intrinsics_file) as json_file:
+        data = json.load(json_file)
+    intrinsics = o3d.camera.PinholeCameraIntrinsic(data['width'], data['height'], data['intrinsic_matrix'][0], data['intrinsic_matrix'][4], data['intrinsic_matrix'][6], data['intrinsic_matrix'][7])
+    return intrinsics, data['depth_scale']
+
 
 ## Histogram filter for the depth image
 def histogram_filtering(dimg, mask, max_depth_range=50, max_depth_contribution=0.05):
@@ -176,7 +183,7 @@ def show_cv(img, fruit_id):
     cv.destroyAllWindows()
 
 class MaskedCameraLaserData(torch.utils.data.Dataset):
-    def __init__(self, data_source, pad_size, pretrain, grid_density, 
+    def __init__(self, data_source, pad_size, detection_input, pretrain, grid_density, 
                 tf=None, supervised_3d=False, split=None, sdf_loss=False, sdf_trunc=0.015, overfit=False, species=None):
 	    
         self.overfit = overfit
@@ -201,6 +208,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         self.tf = tf
 
         self.pad_size = pad_size
+        self.detection_input = detection_input
 
     def get_latents_dict(self, path):
         "create dictionary of pairs fruit_id:latent given pretrained model"
@@ -212,7 +220,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         return latent_dictionary
 
     @staticmethod
-    def preprocess_images(rgb, depth, mask):
+    def preprocess_images(rgb, depth, mask, intrinsic_file, detection_input="box"):
         """ 
         Crop images and depths around the fruit
         
@@ -226,6 +234,22 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
             depth: depth cropped around the fruit
             mask: mask cropped around the fruit
         """
+
+        # create partial point cloud
+        intrinsics, depth_scale = load_intrinsics(intrinsic_file)
+        img_mask = np.multiply(rgb, np.expand_dims(mask, axis=2))
+        dimg_mask = np.multiply(depth, mask)
+        z_min, z_max = histogram_filtering(depth, mask, 50, 0.05)
+        dimg_mask[dimg_mask < z_min] = 0
+        dimg_mask[dimg_mask > z_max] = 0
+
+        rgb_mask = o3d.geometry.Image((img_mask).astype(np.uint8))
+        depth_mask = o3d.geometry.Image(dimg_mask)
+        rgbd_mask = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_mask, depth_mask, depth_scale=depth_scale, depth_trunc=0.4, convert_rgb_to_intensity=False)
+        pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_mask, intrinsics)
+        _, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+        pcd_filtered = pcd.select_by_index(ind)
+        pcd_filtered.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 
         # cropping
         offset = 20
@@ -243,17 +267,17 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         mask = mask[min_i:max_i, min_j:max_j]
 
         ## mask the RGB and depth image and apply histogram filtering on the depth image
-        z_min, z_max = histogram_filtering(depth, mask, 50, 0.05)
-        depth[depth < z_min] = 0
-        depth[depth > z_max] = 0
-        depth = depth * mask
-        mask = np.clip(depth, 0.0, 1.0)
-        rgb = rgb * np.expand_dims(mask.astype(bool), 2)
+        if detection_input == "mask":
+            depth[depth < z_min] = 0
+            depth[depth > z_max] = 0
+            depth = depth * mask
+            mask = np.clip(depth, 0.0, 1.0)
+            rgb = rgb * np.expand_dims(mask.astype(bool), 2)
         
         w = max_i - min_i
         h = max_j - min_j
 
-        return rgb, depth, mask, (min_i, min_j), (w,h), np.ones(mask.shape)
+        return rgb, depth, mask, (min_i, min_j), (w,h), np.ones(mask.shape), pcd_filtered
 
     @staticmethod
     def load_K(path):
@@ -439,6 +463,9 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         depth_path = depth_path.replace('png', 'npy')
         mask_path = image_path.replace('color', 'masks')
 
+        realsense_dir = os.path.dirname(os.path.dirname(self.files[idx]))
+        intrinsic_file = os.path.join(realsense_dir, "intrinsic.json")
+
         rgb = cv.imread(image_path)
         rgb = cv.cvtColor(rgb, cv.COLOR_BGR2RGB)
         depth = np.load(depth_path).astype(np.float32)
@@ -446,8 +473,12 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
 
         # getting intrinsic and camera pose
         k = self.Ks[fruit_id]
-        rgb, depth, mask, crop_origin, crop_dim, padding_mask = self.preprocess_images(rgb, depth, mask)
+        rgb, depth, mask, crop_origin, crop_dim, padding_mask, partial_pcd = self.preprocess_images(rgb, depth, mask, intrinsic_file, self.detection_input)
 
+        ## downsample the partial cloud
+        down_pcd = partial_pcd.random_down_sample((self.pad_size+100)/len(partial_pcd.points))
+        random_list = np.random.choice(len(down_pcd.points), size=self.pad_size, replace=False)
+        down_pcd = down_pcd.select_by_index(random_list)
 
         intrinsic = self.update_intrinsic(crop_origin, depth.shape, k)
 
@@ -475,6 +506,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         item['mask'] = mask
         item['padding_mask'] = padding_mask
         item['target_pcd'] = torch.Tensor(np.asarray(target_pcd.points))
+        item['partial_pcd'] = torch.Tensor(np.asarray(down_pcd.points))
 
         if self.supervised_3d:
             trained_latent = self.latents_dict[fruit_id]

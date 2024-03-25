@@ -23,7 +23,7 @@ from sdfrenderer.grid import Grid3D
 from dataloaders.transforms import Pad
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
 
-from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled
+from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, PointCloudEncoder
 import networks.utils as net_utils
 
 import open3d as o3d
@@ -81,15 +81,17 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
     # define encoder
     if param['encoder'] == 'big':
-        encoder = EncoderBig(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = EncoderBig(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'small_pool':
-        encoder = EncoderPooled(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = EncoderPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'erfnet':
-        encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'pool':
-        encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
+    elif param['encoder'] == 'point_cloud':
+        encoder = PointCloudEncoder(in_channels=3, out_channels=latent_size).to(device)
     else:
-        encoder = Encoder(in_channels=4, out_channels=latent_size, size=param["image_size"]).to(device)
+        encoder = Encoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
 
     ckpt = os.path.join(param['checkpoint_dir'], param['checkpoint_file'])
     # import ipdb;ipdb.set_trace()
@@ -103,12 +105,13 @@ def main_function(decoder, pretrain, cfg, latent_size):
     decoder.to(device)
 
     # transformations
-    tfs = [Pad(size=param["image_size"])]
+    tfs = [Pad(size=param["input_size"])]
     tf = Compose(tfs)
 
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
                                         tf=tf, pretrain=pretrain,
-                                        pad_size=param["image_size"],
+                                        pad_size=param["input_size"],
+                                        detection_input=param["detection_input"],
                                         supervised_3d=True,
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
@@ -130,10 +133,13 @@ def main_function(decoder, pretrain, cfg, latent_size):
             gt.points = o3d.utility.Vector3dVector(item['target_pcd'][0].numpy())
 
             # unpacking inputs
-            rgbd = torch.cat((item['rgb'], item['depth']), 1).to(device)
+            if param['encoder'] != 'point_cloud':
+                encoder_input = torch.cat((item['rgb'], item['depth']), 1).to(device)
+            else: 
+                encoder_input = item['partial_pcd'].permute(0, 2, 1).to(device) ## be aware: the current partial pcd is not registered to the target pcd!
 
             start = time.time()
-            latent = encoder(rgbd)
+            latent = encoder(encoder_input)
 
             
             grid_3d = Grid3D(grid_density, device, precision, bbox=box)
