@@ -119,7 +119,7 @@
             "args": [
                 "--experiment", "./deepsdf/experiments/potato",
                 "--data", "./data",
-                "--checkpoint_decoder", "3500",
+                "--checkpoint_decoder", "500",
                 "--split", "./deepsdf/experiments/splits/potato_val.json",
                 // "--split", "./deepsdf/experiments/splits/potato_train_without_augmentations.json",
             ]
@@ -133,7 +133,7 @@
             "justMyCode": false,
             "args": [
                 "--ground-truth-dir", "./data/potato/",
-                "--prediction-dir", "./deepsdf/experiments/potato/Reconstructions/5000/Meshes/complete/val",
+                "--prediction-dir", "./deepsdf/experiments/potato/Reconstructions/500/Meshes/complete/val",
             ]
         },
         {
@@ -145,13 +145,13 @@
             "justMyCode": false,
             "args": [
                 "--experiment", "./deepsdf/experiments/potato/",
-                "--checkpoint_decoder", "3500",
+                "--checkpoint_decoder", "500",
             ]
         },
         // before training the encoder: run the reconstruct_deep_sdf.py for train, validation and test set:
-        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 3500 --split ./deepsdf/experiments/splits/potato_train_without_augmentations.json
-        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 3500 --split ./deepsdf/experiments/splits/potato_val.json
-        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 3500 --split ./deepsdf/experiments/splits/potato_test.json
+        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 500 --split ./deepsdf/experiments/splits/potato_train_without_augmentations.json
+        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 500 --split ./deepsdf/experiments/splits/potato_val.json
+        // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 500 --split ./deepsdf/experiments/splits/potato_test.json
         {
             "name": "Python: train.py",
             "type": "debugpy",
@@ -162,7 +162,7 @@
             "args": [
                 "--cfg", "./configs/super3d.json",
                 "--experiment", "./deepsdf/experiments/potato/",
-                "--checkpoint_decoder", "3500",
+                "--checkpoint_decoder", "500",
             ]
         },
         {
@@ -175,7 +175,7 @@
             "args": [
                 "--cfg", "./configs/super3d.json",
                 "--experiment", "./deepsdf/experiments/potato/",
-                "--checkpoint_decoder", "3500",
+                "--checkpoint_decoder", "500",
             ]
         },
     ]
