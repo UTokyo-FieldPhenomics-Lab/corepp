@@ -21,13 +21,13 @@ def mesh2pcd(mesh_path, points_num):
 
 if __name__ == "__main__":
 
-    POINTS_NUM = 30000
+    POINTS_NUM = [10000, 20000, 30000]
 
     mesh_folder = '/mnt/data/PieterBlok/Potato/Data/3DPotatoTwin/2_SfM/1_mesh'
     pcd_folder = '/mnt/data/PieterBlok/Potato/Data/3DPotatoTwin/2_SfM/2_pcd'
     mesh_id_list = [i for i in os.listdir(mesh_folder)]
 
-    already_exist = [i.split('_')[0] for i in os.listdir(pcd_folder) if '.ply' in i]
+    already_exist = [i.split('_')[0] for i in os.listdir(pcd_folder)]
 
     for potato_idx in mesh_id_list:
 
@@ -36,13 +36,21 @@ if __name__ == "__main__":
         if potato_idx in already_exist:
             continue
 
-        sampled = mesh2pcd(os.path.join(mesh_folder, potato_idx, potato_idx + '.obj'), POINTS_NUM)
 
-        pcd_path = os.path.join( pcd_folder, f"{potato_idx}_{POINTS_NUM}.ply")
+        for pn in POINTS_NUM:
 
-        o3d.io.write_point_cloud(
-            pcd_path,
-            sampled
-        )
+            sampled = mesh2pcd(os.path.join(mesh_folder, potato_idx, potato_idx + '.obj'), pn)
 
-        print(f" ---> Save to {os.path.abspath(pcd_path)}")
+            put_folder = os.path.join( pcd_folder, potato_idx)
+
+            pcd_path = os.path.join( put_folder, f"{potato_idx}_{pn}.ply")
+
+            if not os.path.exists(put_folder):
+                os.makedirs(put_folder)
+
+            o3d.io.write_point_cloud(
+                pcd_path,
+                sampled
+            )
+
+            print(f" ---> Save to {os.path.abspath(pcd_path)}")
