@@ -2,7 +2,7 @@
     "species" : "potato",
     "data_dir" : "/home/pieter/shape_completion/data/potato/",
     "checkpoint_dir" : "/home/pieter/shape_completion/potato/logs/checkpoints/",
-    "checkpoint_file": "_super3d_small_best_val.pt",
+    "checkpoint_file": "_super3d_small_best_model.pt",
     "log_dir": "/home/pieter/shape_completion/potato/logs/runs/",
     "encoder" : "small_pool",
     "detection_input" : "mask",

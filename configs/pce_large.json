@@ -2,7 +2,7 @@
     "species" : "potato",
     "data_dir" : "/home/pieter/shape_completion/data/potato/",
     "checkpoint_dir" : "/home/pieter/shape_completion/potato/logs/checkpoints/",
-    "checkpoint_file": "_pce_large_best_val.pt",
+    "checkpoint_file": "_pce_large_best_model.pt",
     "log_dir": "/home/pieter/shape_completion/potato/logs/runs/",
     "encoder" : "point_cloud_large",
     "detection_input" : "mask",
