@@ -59,23 +59,18 @@ class EncoderPooled(nn.Module):
         # convolutions
         encoder = [
             nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(16),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Flatten()
@@ -157,31 +152,24 @@ class EncoderBigPooled(nn.Module):
         # convolutions
         encoder = [
             nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(16),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(512, 1024, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(1024),
             nn.MaxPool2d(kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, True),
             nn.Flatten()
@@ -220,16 +208,17 @@ class ERFNetEncoder(nn.Module):
 
         self.layers.append(blocks.DownsamplerBlock(16,64))
 
-        # for x in range(0, 1):    #5 times
+        # for x in range(0, 1):    #2 times
         #    self.layers.append(blocks.non_bottleneck_1d(64, 0.03, 1)) 
-
-        # self.layers.append(blocks.DownsamplerBlock(64,128))
 
         for x in range(0, 1):    #2 times
             self.layers.append(blocks.non_bottleneck_1d(64, 0.3, 2))
             self.layers.append(blocks.non_bottleneck_1d(64, 0.3, 4))
-            # self.layers.append(blocks.non_bottleneck_1d(128, 0.3, 8))
-            # self.layers.append(blocks.non_bottleneck_1d(128, 0.3, 16))
+
+        # self.layers.append(blocks.DownsamplerBlock(64,128))
+        # for x in range(0, 1):    #2 times
+        #     self.layers.append(blocks.non_bottleneck_1d(128, 0.3, 8))
+        #     self.layers.append(blocks.non_bottleneck_1d(128, 0.3, 16))
 
         self.layers.append(nn.Flatten())
         

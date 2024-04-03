@@ -76,7 +76,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
     # creating variables for 3d grid for diff SDF renderer
     threshold = param['threshold']
-    grid_density = 40  # param['grid_density']
+    grid_density = param['grid_density']
     precision = torch.float32
 
     # define encoder
@@ -113,9 +113,13 @@ def main_function(decoder, pretrain, cfg, latent_size):
     tf = Compose(tfs)
 
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
-                                        tf=tf, pretrain=pretrain,
+                                        tf=tf, 
+                                        pretrain=pretrain,
                                         pad_size=param["input_size"],
                                         detection_input=param["detection_input"],
+                                        normalize_depth=param["normalize_depth"],
+                                        depth_min=param["depth_min"],
+                                        depth_max=param["depth_max"],
                                         supervised_3d=True,
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],

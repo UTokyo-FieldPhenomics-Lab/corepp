@@ -44,7 +44,7 @@ def AttRepLoss(latents, fruit_ids, device, delta_rep=.5):
 
 
 def SuperLoss(pred, gt):
-    return nn.L1Loss()(pred.cuda(), gt.cuda())
+    return nn.MSELoss()(pred.cuda(), gt.cuda())
 
 
 def SDFLoss(pred, target, target_weights, sdf_trunc, points):

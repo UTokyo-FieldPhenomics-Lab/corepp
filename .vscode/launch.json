@@ -148,6 +148,19 @@
                 "--checkpoint_decoder", "500",
             ]
         },
+        {
+            "name": "Python: get_config_values.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_preparation/get_config_values.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--data_dir", "./data/potato/",
+                "--offset", "20",
+                "--split_file", "./data/potato/split.json",
+            ]
+        },
         // before training the encoder: run the reconstruct_deep_sdf.py for train, validation and test set:
         // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 500 --split ./deepsdf/experiments/splits/potato_train_without_augmentations.json
         // python reconstruct_deep_sdf.py --experiment ./deepsdf/experiments/potato --data ./data --checkpoint 500 --split ./deepsdf/experiments/splits/potato_val.json

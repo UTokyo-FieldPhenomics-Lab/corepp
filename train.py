@@ -81,9 +81,13 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     tf = Compose(tfs)
 
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
-                                        tf=tf, pretrain=pretrain,
+                                        tf=tf, 
+                                        pretrain=pretrain,
                                         pad_size=param["input_size"],
                                         detection_input=param["detection_input"],
+                                        normalize_depth=param["normalize_depth"],
+                                        depth_min=param["depth_min"],
+                                        depth_max=param["depth_max"],
                                         supervised_3d=param["supervised_3d"],
                                         sdf_loss=param["3D_loss"],
                                         grid_density=param["grid_density"],
@@ -213,9 +217,13 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
             with torch.no_grad():
 
                 val_cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
-                                                        tf=tf, pretrain=pretrain,
+                                                        tf=tf, 
+                                                        pretrain=pretrain,
                                                         pad_size=param["input_size"],
                                                         detection_input=param["detection_input"],
+                                                        normalize_depth=param["normalize_depth"],
+                                                        depth_min=param["depth_min"],
+                                                        depth_max=param["depth_max"],
                                                         supervised_3d=False,
                                                         sdf_loss=param["3D_loss"],
                                                         grid_density=param["grid_density"],
@@ -324,7 +332,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--checkpoint_decoder",
         dest="checkpoint",
-        default="3500",
+        default="500",
         help="The checkpoint weights to use. This should be a number indicated an epoch",
     )
     arg_parser.add_argument(

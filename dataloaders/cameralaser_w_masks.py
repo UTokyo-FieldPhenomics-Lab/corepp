@@ -183,7 +183,7 @@ def show_cv(img, fruit_id):
     cv.destroyAllWindows()
 
 class MaskedCameraLaserData(torch.utils.data.Dataset):
-    def __init__(self, data_source, pad_size, detection_input, pretrain, grid_density, 
+    def __init__(self, data_source, pad_size, detection_input, normalize_depth, depth_min, depth_max, pretrain, grid_density, 
                 tf=None, supervised_3d=False, split=None, sdf_loss=False, sdf_trunc=0.015, overfit=False, species=None):
 	    
         self.overfit = overfit
@@ -209,6 +209,9 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
 
         self.pad_size = pad_size
         self.detection_input = detection_input
+        self.normalize_depth = normalize_depth
+        self.depth_min = depth_min  # in mm
+        self.depth_max = depth_max  # in mm
 
     def get_latents_dict(self, path):
         "create dictionary of pairs fruit_id:latent given pretrained model"
@@ -495,6 +498,13 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         #     item['target_sdf'] = torch.from_numpy(target_sdf)
         #     item['target_sdf_weights'] = torch.from_numpy(target_sdf_weights)
 
+        if self.normalize_depth:
+            depth_original = copy.deepcopy(depth)
+            depth = (depth_original - self.depth_min) / (self.depth_max - self.depth_min)
+            depth[depth_original == 0] = 0
+        else:
+            depth = depth / self.depth_max
+
         if self.tf:
             rgb = torch.from_numpy(np.array(self.tf(rgb))).permute(2,0,1)
             depth = torch.from_numpy(np.array(self.tf(depth))).unsqueeze(dim=0) 
@@ -502,7 +512,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
             padding_mask = torch.from_numpy(np.array(self.tf(padding_mask))).unsqueeze(dim=0)
 
         item['rgb'] = rgb.float()/255 
-        item['depth'] = depth.float()/1000 # suppose depth is in mm
+        item['depth'] = depth.float()
         item['mask'] = mask
         item['padding_mask'] = padding_mask
         item['target_pcd'] = torch.Tensor(np.asarray(target_pcd.points))
