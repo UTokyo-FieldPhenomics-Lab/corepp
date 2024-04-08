@@ -49,7 +49,7 @@ class Decoder(nn.Module):
                 setattr(
                     self,
                     "lin" + str(layer),
-                    nn.utils.weight_norm(nn.Linear(dims[layer], out_dim)),
+                    nn.utils.parametrizations.weight_norm(nn.Linear(dims[layer], out_dim)),
                 )
             else:
                 setattr(self, "lin" + str(layer), nn.Linear(dims[layer], out_dim))
