@@ -23,7 +23,7 @@ from sdfrenderer.grid import Grid3D
 from dataloaders.transforms import Pad
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
 
-from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled
+from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, DoubleEncoder
 import networks.utils as net_utils
 
 import open3d as o3d
@@ -33,7 +33,7 @@ import time
 import json
 
 from utils import sdf2mesh, tensor_dict_2_float_dict
-# from metrics_3d import chamfer_distance, precision_recall
+from metrics_3d import chamfer_distance, precision_recall
 
 # cd = chamfer_distance.ChamferDistance()
 # pr = precision_recall.PrecisionRecall(0.001, 0.01, 10)
@@ -149,6 +149,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
             start = time.time()
             pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
+            import ipdb;ipdb.set_trace()
             if pred_mesh.is_watertight():
                 marching_cubes_volume = pred_mesh.get_volume()
             volumes.append([volume,marching_cubes_volume,vgrid_volume])
