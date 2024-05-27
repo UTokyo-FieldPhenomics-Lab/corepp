@@ -11,3 +11,6 @@ checkpoints/
 results/
 data_preparation/move.py
 prototype.py
+.vscode/
+potato/
+shape_completion_results.csv
