@@ -117,10 +117,10 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--experiment", "./deepsdf/experiments/potato",
+                "--experiment", "./deepsdf/experiments/potato_32",
                 "--data", "./data",
-                "--checkpoint_decoder", "500",
-                "--split", "./deepsdf/experiments/splits/potato_val.json",
+                "--checkpoint_decoder", "130",
+                "--split", "./deepsdf/experiments/splits/potato_test.json",
                 // "--split", "./deepsdf/experiments/splits/potato_train_without_augmentations.json",
             ]
         },
@@ -133,7 +133,7 @@
             "justMyCode": false,
             "args": [
                 "--ground-truth-dir", "./data/potato/",
-                "--prediction-dir", "./deepsdf/experiments/potato/Reconstructions/500/Meshes/complete/val",
+                "--prediction-dir", "./deepsdf/experiments/potato_32/Reconstructions/130/Meshes/complete/test",
             ]
         },
         {
@@ -173,9 +173,9 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--cfg", "./configs/super3d.json",
-                "--experiment", "./deepsdf/experiments/potato/",
-                "--checkpoint_decoder", "500",
+                "--cfg", "./configs/super3d_32.json",
+                "--experiment", "./deepsdf/experiments/potato_32/",
+                "--checkpoint_decoder", "130",
             ]
         },
         {
@@ -186,9 +186,9 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--cfg", "./configs/super3d.json",
-                "--experiment", "./deepsdf/experiments/potato/",
-                "--checkpoint_decoder", "500",
+                "--cfg", "./deepsdf/experiments/potato_32/super3d_32.json",
+                "--experiment", "./deepsdf/experiments/potato_32/",
+                "--checkpoint_decoder", "130",
             ]
         },
     ]

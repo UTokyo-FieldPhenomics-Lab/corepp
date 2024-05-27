@@ -7,7 +7,10 @@ deepsdf/experiments/
 cache/
 runs/
 checkpoints/
+potato/
 *~
 results/
 data_preparation/move.py
 prototype.py
+shape_completion_results.csv
+test_visualize.py
