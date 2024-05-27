@@ -23,49 +23,43 @@ from sdfrenderer.grid import Grid3D
 from dataloaders.transforms import Pad
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
 
-from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, PointCloudEncoder, PointCloudEncoderLarge, FoldNetEncoder
+from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, DoubleEncoder, PointCloudEncoder, PointCloudEncoderLarge, FoldNetEncoder
 import networks.utils as net_utils
 
 import open3d as o3d
-import open3d.core as o3c
-import torch.utils.dlpack
 import numpy as np
 
 import time
 import json
 
-from utils import sdf2mesh, tensor_dict_2_float_dict
-# from metrics_3d import chamfer_distance, precision_recall
+from utils import sdf2mesh_cuda, tensor_dict_2_float_dict
+from metrics_3d import chamfer_distance, precision_recall
 
-# cd = chamfer_distance.ChamferDistance()
-# pr = precision_recall.PrecisionRecall(0.001, 0.01, 10)
+cd = chamfer_distance.ChamferDistance()
+pr = precision_recall.PrecisionRecall(0.001, 0.01, 10)
 
 torch.autograd.set_detect_anomaly(True)
+import pandas as pd
+from sklearn.metrics import mean_squared_error
 
 
-def from_pred_sdf_to_mesh(pred_sdf, grid_points, t=0):
-    keep_idx = torch.lt(pred_sdf, t)
-    keep_points = grid_points[torch.squeeze(keep_idx)]
-
-    o3d_t = o3c.Tensor.from_dlpack(torch.utils.dlpack.to_dlpack(keep_points))
-    pcd_gpu = o3d.t.geometry.PointCloud(o3d_t)
-    _, ind = pcd_gpu.remove_statistical_outliers(nb_neighbors=20, std_ratio=2.0)
-    pcd_gpu_filt = pcd_gpu.select_by_mask(ind)
-    down_pcd_gpu = pcd_gpu_filt.voxel_down_sample(voxel_size=0.005)
-
-    hull_gpu = down_pcd_gpu.compute_convex_hull()
-    hull = hull_gpu.to_legacy()
-    hull.remove_degenerate_triangles()
-    hull.remove_duplicated_triangles()
-    hull.remove_duplicated_vertices()
-    hull.remove_non_manifold_edges()
-    hull.remove_unreferenced_vertices()
-
-    return hull
-
-def main_function(decoder, pretrain, cfg, latent_size):
-    volumes = []
-    print("\n WARNING I'M NOT SAVING THE PREDICTIONS AT THE MOMENT \n")
+def main_function(decoder, pretrain, cfg, latent_size, visualize):
+    torch.manual_seed(133)
+    np.random.seed(133)
+    
+    df = pd.read_csv("/mnt/data/PieterBlok/Potato/Data/ground_truth_measurements/ground_truth.csv")
+    columns = ['potato_id',
+                'frame_id',
+                'vertical_pos',
+                'weight_g',
+                'gt_volume_ml',
+                'sfm_volume_ml',
+                'mesh_volume_ml',
+                'chamfer_distance',
+                'precision',
+                'recall',
+                'f1']
+    save_df = pd.DataFrame(columns=columns)
 
     exec_time = []
 
@@ -88,6 +82,8 @@ def main_function(decoder, pretrain, cfg, latent_size):
         encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'pool':
         encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
+    elif param['encoder'] == 'double':
+        encoder = DoubleEncoder(out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'point_cloud':
         encoder = PointCloudEncoder(in_channels=3, out_channels=latent_size).to(device)
     elif param['encoder'] == 'point_cloud_large':
@@ -114,6 +110,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
                                         tf=tf, 
+                                        color_tf = None,
                                         pretrain=pretrain,
                                         pad_size=param["input_size"],
                                         detection_input=param["detection_input"],
@@ -132,13 +129,14 @@ def main_function(decoder, pretrain, cfg, latent_size):
     with torch.no_grad():
 
         for n_iter, item in enumerate(tqdm(iter(dataset))):
-            volume,marching_cubes_volume = 0,0
+            volume, chamfer_distance, prec, rec, f1 = 0, 0, 0, 0, 0
             box = tensor_dict_2_float_dict(item['bbox'])
-            voxel_size = (box['xmax'] - box['xmin'])/grid_density
 
             cs = o3d.geometry.TriangleMesh.create_coordinate_frame(0.05)
             gt = o3d.geometry.PointCloud()
             gt.points = o3d.utility.Vector3dVector(item['target_pcd'][0].numpy())
+
+            start = time.time()
 
             # unpacking inputs
             if param['encoder'] != 'point_cloud' and param['encoder'] != 'point_cloud_large' and param['encoder'] != 'foldnet':
@@ -146,45 +144,91 @@ def main_function(decoder, pretrain, cfg, latent_size):
             else: 
                 encoder_input = item['partial_pcd'].permute(0, 2, 1).to(device) ## be aware: the current partial pcd is not registered to the target pcd!
 
-            start = time.time()
             latent = encoder(encoder_input)
 
-            
             grid_3d = Grid3D(grid_density, device, precision, bbox=box)
             deepsdf_input = torch.cat([latent.expand(grid_3d.points.size(0), -1),
                                         grid_3d.points], dim=1).to(latent.device, latent.dtype)
             pred_sdf = decoder(deepsdf_input)
-            mesh = from_pred_sdf_to_mesh(pred_sdf, grid_3d.points, t=0.005)
-            if mesh.is_watertight():
-                volume = mesh.get_volume()
-            else:
-                print(item['frame_id'])
-            # o3d.visualization.draw_geometries([hull, gt, cs], mesh_show_wireframe=True)
+
+            try:
+                mesh = sdf2mesh_cuda(pred_sdf, grid_3d.points, t=0.0)
+                if mesh.is_watertight():
+                    volume = mesh.get_volume()
+                else:
+                    print(item['frame_id'])
+                    pass
+            except:
+                pass
+
             inference_time = time.time() - start
-            # for the deployment we can delete from here to the end of the file
+
             if n_iter > 0:
                 exec_time.append(inference_time)
-            # continue
-            # print(n_iter, item['fruit_id'], inference_time)
 
-            start = time.time()
-            pred_mesh = sdf2mesh(pred_sdf, voxel_size, grid_density)
-            if pred_mesh.is_watertight():
-                marching_cubes_volume = pred_mesh.get_volume()
-            volumes.append([volume,marching_cubes_volume])
-            # pred_mesh.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
-            # pred_mesh = pred_mesh.filter_smooth_simple(number_of_iterations=2)
-            # o3d.visualization.draw_geometries([pred_mesh.translate([.1,0,0]), gt, cs], mesh_show_wireframe=True)
-            # o3d.visualization.draw_geometries([pred_mesh, gt, cs], mesh_show_wireframe=True)
-            # cd.update(gt,pred_mesh)
-            # pr.update(gt,pred_mesh)
+            cd.reset()
+            cd.update(gt, mesh)
+            chamfer_distance = cd.compute()
+
+            pr.reset()
+            pr.update(gt, mesh)
+            prec, rec, f1, _ = pr.compute_at_threshold(0.005)
+
+            cur_data = {
+                'potato_id': item['fruit_id'][0],
+                'frame_id': item['frame_id'][0],
+                'vertical_pos': int(item['frame_id'][0].split("_")[-1]),
+                'weight_g': df.loc[df['label'] == item['fruit_id'][0], 'weight_g_inctack'].values[0],
+                'gt_volume_ml': df.loc[df['label'] == item['fruit_id'][0], 'volume_ml'].values[0],
+                'sfm_volume_ml': df.loc[df['label'] == item['fruit_id'][0], 'volume_metashape'].values[0],
+                'mesh_volume_ml': round(volume * 1e6, 1),
+                'chamfer_distance': round(chamfer_distance, 6),
+                'precision': round(prec, 1),
+                'recall': round(rec, 1),
+                'f1': round(f1, 1)
+                }
+            save_df = pd.concat([save_df, pd.DataFrame([cur_data])], ignore_index=True)
+            save_df.to_csv("shape_completion_results.csv", mode='w+', index=False)
 
 
-        # print('inference time: {}'.format(mean(exec_time)))
-        # cd.compute()
-        # pr.compute_at_threshold(0.005)
-        np.savetxt('./volumes.txt',volumes)
+        print(f"Average time for 3D shape completion, including postprocessing: {mean(exec_time)*1e3:.1f} ms")
 
+        try:
+            analysis_values = [[0, 100], [100, 150], [150, 200], [200, 250], 
+                                [250, 300], [300, 350], [350, 400], [400, 450], 
+                                [450, 500], [500, 550], [550, 600], [600, 650], 
+                                [650, 720]]
+            
+            for start, end in analysis_values:
+                subset_df = save_df[(save_df['vertical_pos'] >= start) & (save_df['vertical_pos'] <= end)]
+                filtered_subset_df = subset_df[subset_df['mesh_volume_ml'] != 0]
+                subset_rmse_volume = mean_squared_error(filtered_subset_df['sfm_volume_ml'].values, filtered_subset_df['mesh_volume_ml'].values, squared=False)
+                print(f"RMSE volume: {round(subset_rmse_volume, 1)} between {start}-{end} pixels")
+
+            filtered_mesh = save_df[save_df['mesh_volume_ml'] != 0]
+            rmse_volume = mean_squared_error(filtered_mesh['sfm_volume_ml'].values, filtered_mesh['mesh_volume_ml'].values, squared=False)
+            avg_cd = sum(save_df['chamfer_distance'].values) / len(save_df['chamfer_distance'].values)
+            avg_p = sum(save_df['precision'].values) / len(save_df['precision'].values)
+            avg_r = sum(save_df['recall'].values) / len(save_df['recall'].values)
+            avg_f1 = sum(save_df['f1'].values) / len(save_df['f1'].values)
+
+            cur_data = {
+                    'potato_id': "",
+                    'frame_id': "",
+                    'weight_g': "",
+                    'gt_volume_ml': "",
+                    'sfm_volume_ml': "",
+                    'mesh_volume_ml': round(rmse_volume, 1),
+                    'chamfer_distance': round(avg_cd, 6),
+                    'precision': round(avg_p, 1),
+                    'recall': round(avg_r, 1),
+                    'f1': round(avg_f1, 1)
+                    }
+            
+            save_df = pd.concat([save_df, pd.DataFrame([cur_data])], ignore_index=True)
+            save_df.to_csv("shape_completion_results.csv", mode='w+', index=False)
+        except:
+            pass
 
 if __name__ == "__main__":
 
@@ -210,8 +254,14 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--checkpoint_decoder",
         dest="checkpoint",
-        default="3500",
+        default="500",
         help="The checkpoint weights to use. This should be a number indicated an epoch",
+    )
+    arg_parser.add_argument(
+        "--visualize",
+        dest="visualize",
+	    action='store_true',
+        help="Visualize the prediction output with chamfer distances",
     )
 
     deep_sdf.add_common_args(arg_parser)
@@ -236,4 +286,5 @@ if __name__ == "__main__":
     main_function(decoder=decoder,
                   pretrain=pretrain_path,
                   cfg=args.cfg,
-                  latent_size=latent_size)
+                  latent_size=latent_size,
+                  visualize=args.visualize)
