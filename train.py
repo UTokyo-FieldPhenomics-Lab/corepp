@@ -7,10 +7,10 @@ import json
 from tqdm import tqdm
 
 import os
-import open3d as o3d
+import pandas as pd
 
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms.transforms import Compose
+from torchvision.transforms import v2
 
 import deepsdf.deep_sdf as deep_sdf
 import deepsdf.deep_sdf.workspace as ws
@@ -18,17 +18,21 @@ import deepsdf.deep_sdf.workspace as ws
 from sdfrenderer.grid import Grid3D
 
 from dataloaders.cameralaser_w_masks import MaskedCameraLaserData
-from dataloaders.transforms import Pad
+from dataloaders.transforms import Pad, Rotate, RandomHorizontalFlip, RandomVerticalFlip
 
-from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, PointCloudEncoder, PointCloudEncoderLarge, FoldNetEncoder
+from networks.models import Encoder, EncoderBig, ERFNetEncoder, EncoderBigPooled, EncoderPooled, DoubleEncoder, PointCloudEncoder, PointCloudEncoderLarge, FoldNetEncoder
 import networks.utils as net_utils
 
 from loss import KLDivLoss, SuperLoss, SDFLoss, RegLatentLoss, AttRepLoss
-from utils import sdf2mesh, save_model, tensor_dict_2_float_dict
+from utils import sdf2mesh_cuda, save_model, tensor_dict_2_float_dict
 
 DEBUG = True
 
 torch.autograd.set_detect_anomaly(True)
+
+from metrics_3d import chamfer_distance
+cd = chamfer_distance.ChamferDistance()
+from sklearn.metrics import mean_squared_error
 
 
 def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, update_decoder):
@@ -45,7 +49,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
     device = 'cuda'
     shuffle = True
-    last_validation_score = np.inf
+    last_rmse = np.inf
 
     # creating variables for 3d grid for diff SDF renderer
     grid_density = param['grid_density']
@@ -60,6 +64,12 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
         encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'pool':
         encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
+    elif param['encoder'] == 'pool2':
+        encoder = EncoderBigPooled2(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
+    elif param['encoder'] == 'double':
+        encoder = DoubleEncoder(out_channels=latent_size, size=param["input_size"]).to(device)
+    elif param['encoder'] == 'rgbd':
+        encoder = RGBDEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'point_cloud':
         encoder = PointCloudEncoder(in_channels=3, out_channels=latent_size).to(device)
     elif param['encoder'] == 'point_cloud_large':
@@ -77,11 +87,15 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     decoder.to(device)
 
     # transformations
-    tfs = [Pad(size=param["input_size"])]
-    tf = Compose(tfs)
+    geo_tfs = v2.RandomChoice([Rotate(angle=45), RandomHorizontalFlip(), RandomVerticalFlip()])
+    color_tfs = [Pad(size=param["input_size"]), v2.ColorJitter(brightness=0.5, hue=(-0.1, 0.1), saturation=0.5), geo_tfs]
+    color_tf = v2.Compose(color_tfs)
+    default_tfs = [Pad(size=param["input_size"]), geo_tfs]
+    default_tf = v2.Compose(default_tfs)
 
     cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
-                                        tf=tf, 
+                                        tf=default_tf,
+                                        color_tf = color_tf, 
                                         pretrain=pretrain,
                                         pad_size=param["input_size"],
                                         detection_input=param["detection_input"],
@@ -111,6 +125,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
     # import ipdb; ipdb.set_trace()
     n_iter = 0  # used for tensorboard
+    df = pd.read_csv("/mnt/data/PieterBlok/Potato/Data/ground_truth_measurements/ground_truth.csv")
+
     for e in range(param["epoch"]):
         for idx, item in enumerate(iter(dataset)):
 
@@ -134,7 +150,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
             latent_batch = latent_batch_unnormd #/ norms_batch.unsqueeze(dim=1)
 
             if param["contrastive"]:
-                fruit_ids = [int(fid[1:]) for fid in item['fruit_id']]
+                fruit_ids = [list(dataset.dataset.Ks.keys()).index(fid) for fid in item['fruit_id']]
                 fruit_ids = torch.Tensor(fruit_ids)
 
                 att_loss = AttRepLoss(latent_batch, fruit_ids, device)
@@ -208,23 +224,24 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
             logging_string += ' -- lr: {}'.format(scheduler.get_last_lr()[0])
             print(logging_string)
 
-            # if DEBUG: print('memory allocated: ', torch.cuda.memory_allocated(device=device))
-
         scheduler.step()
 
         # validation step
         if (e+1) % param["validation_frequency"] == 0:
             with torch.no_grad():
+                val_tfs = [Pad(size=param["input_size"])]
+                val_tf = v2.Compose(val_tfs)
 
                 val_cl_dataset = MaskedCameraLaserData(data_source=param["data_dir"],
-                                                        tf=tf, 
+                                                        tf=val_tf,
+                                                        color_tf = None, 
                                                         pretrain=pretrain,
                                                         pad_size=param["input_size"],
                                                         detection_input=param["detection_input"],
                                                         normalize_depth=param["normalize_depth"],
                                                         depth_min=param["depth_min"],
                                                         depth_max=param["depth_max"],
-                                                        supervised_3d=False,
+                                                        supervised_3d=param["supervised_3d"],
                                                         sdf_loss=param["3D_loss"],
                                                         grid_density=param["grid_density"],
                                                         split='val',
@@ -234,8 +251,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
                 val_dataset = DataLoader(val_cl_dataset, batch_size=1, shuffle=False)
 
-                cd_val = 0
-                val_counter = 0
+                gt_volumes = []
+                pred_volumes = []
                 print('\nvalidation...')
                 for _, item in enumerate(tqdm(iter(val_dataset))):
                     try:
@@ -250,42 +267,26 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                         dec_input_val = torch.cat([latent_val.expand(grid.points.size(0), -1), grid_val.points], dim=1)
 
                         pred_sdf_val = decoder(dec_input_val)
+                        mesh_val = sdf2mesh_cuda(pred_sdf_val, grid_val.points, t=0.0)
 
-                        voxel_size = (box['xmax'] - box['xmin'])/grid_density
-                        pred_mesh_val = sdf2mesh(pred_sdf_val, voxel_size, grid_density)
-                        pred_mesh_val.translate(np.full((3, 1), -(box['xmax'] - box['xmin'])/2))
-                        
+                        pred_volume = mesh_val.get_volume()
+                        pred_volumes.append(round(pred_volume * 1e6, 1))
 
-                        gt_pcd = o3d.io.read_point_cloud(os.path.join(param["data_dir"], item['fruit_id'][0], 'laser/fruit.ply'))
-                        pt_pcd = pred_mesh_val.sample_points_uniformly(1000000)
-                        dist_pt_2_gt = np.asarray(pt_pcd.compute_point_cloud_distance(gt_pcd))
-                        dist_gt_2_pt = np.asarray(gt_pcd.compute_point_cloud_distance(pt_pcd))
-                        d = (np.mean(dist_gt_2_pt) + np.mean(dist_pt_2_gt))/2                    
-                        cd_val += d
-                        val_counter += 1
-                        
-                        pred_mesh_val = pred_mesh_val.filter_smooth_simple(10)
-                        pred_mesh_val_lines = o3d.geometry.LineSet.create_from_triangle_mesh(pred_mesh_val)
-                        pred_set = o3d.geometry.LineSet(pred_mesh_val_lines)
-
-                        # if e == param["epoch"] - 1:
-                        #     o3d.visualization.draw_geometries([pred_set, gt_pcd, pred_mesh_val_lines.translate(np.array((0.2, 0, 0)))])
+                        gt_volume = df.loc[df['label'] == item['fruit_id'][0], 'volume_metashape'].values[0]
+                        gt_volumes.append(gt_volume)
 
                         if args.overfit: break                        
-
-                        # o3d.visualization.draw_geometries([gt_pcd,pred_mesh_val.translate(np.array((0.1, 0, 0)))])
-                        # import ipdb;ipdb.set_trace()
                     except:
                         pass
 
-                cd_val = cd_val /  val_counter
-                print('score: ', cd_val)
+                rmse_volume = mean_squared_error(gt_volumes, pred_volumes, squared=False)
+                print('RMSE volume: ', round(rmse_volume, 1))
 
             # logging
-            writer.add_scalar('Val/Score', cd_val, n_iter)
+            writer.add_scalar('Val/rmse_volume', rmse_volume, n_iter)
             # saving best model
-            if cd_val < last_validation_score:
-                last_validation_score = cd_val
+            if rmse_volume < last_rmse:
+                last_rmse = rmse_volume
                 save_model(encoder, decoder, e, optim, loss, param["checkpoint_dir"]+'_'+cfg_fname+'_best_model.pt')
                 print('saving best model')
             print()
