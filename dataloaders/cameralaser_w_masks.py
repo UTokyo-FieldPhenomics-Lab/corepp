@@ -23,6 +23,13 @@ mpl.rcParams['image.cmap'] = 'gray'
 
 NAME = '0'
 
+def imshow(img):
+    # plt.imshow(img[:, :, [2, 1, 0]])
+    plt.imshow(img)
+    plt.axis("off")
+    plt.show()
+    
+
 ## load intrinsics file
 def load_intrinsics(intrinsics_file):
     with open(intrinsics_file) as json_file:
@@ -184,7 +191,7 @@ def show_cv(img, fruit_id):
 
 class MaskedCameraLaserData(torch.utils.data.Dataset):
     def __init__(self, data_source, pad_size, detection_input, normalize_depth, depth_min, depth_max, pretrain, grid_density, 
-                tf=None, supervised_3d=False, split=None, sdf_loss=False, sdf_trunc=0.015, overfit=False, species=None):
+                tf=None, color_tf=None, supervised_3d=False, split=None, sdf_loss=False, sdf_trunc=0.015, overfit=False, species=None):
 	    
         self.overfit = overfit
         self.data_source = data_source
@@ -206,6 +213,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         self.grid_density = grid_density
         self.supervised_3d = supervised_3d
         self.tf = tf
+        self.color_tf = color_tf
 
         self.pad_size = pad_size
         self.detection_input = detection_input
@@ -505,8 +513,13 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
         else:
             depth = depth / self.depth_max
 
+        if self.color_tf:
+            rgb = torch.from_numpy(np.array(self.color_tf(rgb))).permute(2,0,1)
+        else:
+            if self.tf:
+                rgb = torch.from_numpy(np.array(self.tf(rgb))).permute(2,0,1)
+
         if self.tf:
-            rgb = torch.from_numpy(np.array(self.tf(rgb))).permute(2,0,1)
             depth = torch.from_numpy(np.array(self.tf(depth))).unsqueeze(dim=0) 
             mask = torch.from_numpy(np.array(self.tf(mask))).unsqueeze(dim=0)
             padding_mask = torch.from_numpy(np.array(self.tf(padding_mask))).unsqueeze(dim=0)
