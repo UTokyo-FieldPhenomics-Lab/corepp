@@ -145,7 +145,7 @@ class MaskedCameraLaserData(torch.utils.data.Dataset):
     def get_latents_dict(self, path):
         "create dictionary of pairs fruit_id:latent given pretrained model"
         latent_dictionary = {}
-        path = os.path.join(path, 'Reconstructions/3000/Codes/complete')
+
         for fname in os.listdir(path):
             latent = torch.load(os.path.join(path,fname))
             key = fname[:-4]

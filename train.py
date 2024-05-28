@@ -122,7 +122,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
             latent_batch = latent_batch_unnormd #/ norms_batch.unsqueeze(dim=1)
 
             if param["contrastive"]:
-                fruit_ids = [int(fid[1:]) for fid in item['fruit_id']]
+                fruit_ids = [list(dataset.dataset.Ks.keys()).index(fid) for fid in item['fruit_id']]
                 fruit_ids = torch.Tensor(fruit_ids)
 
                 att_loss = AttRepLoss(latent_batch, fruit_ids, device)
@@ -215,7 +215,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
                                                         species=param["species"]
                                                         )
 
-                val_dataset = DataLoader(cl_dataset, batch_size=1, shuffle=False)
+                val_dataset = DataLoader(val_cl_dataset, batch_size=1, shuffle=False)
 
                 cd_val = 0
                 print('\nvalidation...')
@@ -307,6 +307,13 @@ if __name__ == "__main__":
     )
 
     arg_parser.add_argument(
+        "--checkpoint_decoder",
+        dest="checkpoint",
+        default="500",
+        help="The checkpoint weights to use. This should be a number indicated an epoch",
+    )
+
+    arg_parser.add_argument(
         "--decoder",
         dest="decoder",
 	    action='store_true',
@@ -324,13 +331,15 @@ if __name__ == "__main__":
     arch = __import__("deepsdf.networks." + specs["NetworkArch"], fromlist=["Decoder"])
     decoder = arch.Decoder(latent_size, **specs["NetworkSpecs"]).cuda()
 
-    path = args.experiment_directory + '/ModelParameters/latest.pth'
+    path = os.path.join(args.experiment_directory, 'ModelParameters', args.checkpoint) + '.pth'
     model_state = net_utils.load_without_parallel(torch.load(path))
     decoder.load_state_dict(model_state)
     decoder = net_utils.set_require_grad(decoder, True)
 
+    pretrain_path = os.path.join(args.experiment_directory, 'Reconstructions', args.checkpoint, 'Codes', 'complete')
+
     main_function(decoder=decoder,
-                  pretrain=args.experiment_directory,
+                  pretrain=pretrain_path,
                   cfg=args.cfg,
                   latent_size=latent_size,
                   trunc_val=specs['ClampingDistance'],
