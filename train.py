@@ -64,12 +64,8 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
         encoder = ERFNetEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'pool':
         encoder = EncoderBigPooled(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
-    elif param['encoder'] == 'pool2':
-        encoder = EncoderBigPooled2(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'double':
         encoder = DoubleEncoder(out_channels=latent_size, size=param["input_size"]).to(device)
-    elif param['encoder'] == 'rgbd':
-        encoder = RGBDEncoder(in_channels=4, out_channels=latent_size, size=param["input_size"]).to(device)
     elif param['encoder'] == 'point_cloud':
         encoder = PointCloudEncoder(in_channels=3, out_channels=latent_size).to(device)
     elif param['encoder'] == 'point_cloud_large':
