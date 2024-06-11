@@ -1,6 +1,10 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
+import open3d.core as o3c
+import json
+import torch.utils.dlpack
 from skimage import measure
 import torch
 
@@ -137,3 +141,132 @@ def generate_deepsdf_target(pcd, mu=0.001, align_with=np.array([0.0, 1.0, 0.0]))
     # visualize_sdf(np.vstack((sdf_pos, sdf_neg))) 
 
     return sdf_pos, sdf_neg
+
+
+def sdf2mesh_cuda(pred_sdf, grid_points, t=0):
+    voxel_size = 0.0
+    keep_idx = torch.lt(pred_sdf, t)
+    keep_points = grid_points[torch.squeeze(keep_idx)]
+
+    o3d_t = o3c.Tensor.from_dlpack(torch.utils.dlpack.to_dlpack(keep_points))
+    pcd_gpu = o3d.t.geometry.PointCloud(o3d_t)
+
+    hull_gpu = pcd_gpu.compute_convex_hull()
+    hull = hull_gpu.to_legacy()
+
+    mesh = hull.subdivide_loop(number_of_iterations=1)
+    mesh.remove_degenerate_triangles()
+    mesh.remove_duplicated_triangles()
+    mesh.remove_duplicated_vertices()
+    mesh.remove_non_manifold_edges()
+    mesh.remove_unreferenced_vertices()
+
+    while not mesh.is_watertight():
+        voxel_size += 0.01
+        down_pcd_gpu = pcd_gpu.voxel_down_sample(voxel_size=voxel_size)
+        hull_gpu = down_pcd_gpu.compute_convex_hull()
+        hull = hull_gpu.to_legacy()
+        
+        mesh = hull.subdivide_loop(number_of_iterations=1)
+        mesh.remove_degenerate_triangles()
+        mesh.remove_duplicated_triangles()
+        mesh.remove_duplicated_vertices()
+        mesh.remove_non_manifold_edges()
+        mesh.remove_unreferenced_vertices()
+
+    return mesh
+
+
+def visualize_errors(pred_mesh, gt_pcd, max_error):
+    cmap = plt.get_cmap('RdYlGn_r')
+
+    mesh_error = o3d.geometry.TriangleMesh()
+    mesh_error.vertices = pred_mesh.vertices
+    mesh_error.triangles = pred_mesh.triangles
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = pred_mesh.vertices
+    dist_pt_2_gt = np.asarray(pcd.compute_point_cloud_distance(gt_pcd))
+    dist_pt_2_gt -= dist_pt_2_gt.min()
+    dist_pt_2_gt /= max_error ## dist_pt_2_gt /= dist_pt_2_gt.max()
+    color = cmap(dist_pt_2_gt)[:,:-1]
+    mesh_error.vertex_colors = o3d.utility.Vector3dVector(color)
+
+    return mesh_error
+
+
+def mesh_and_volume(pcd):
+    mesh, _ = pcd.compute_convex_hull()
+
+    mesh.remove_degenerate_triangles()
+    mesh.remove_duplicated_triangles()
+    mesh.remove_duplicated_vertices()
+    mesh.remove_non_manifold_edges()
+    mesh.remove_unreferenced_vertices()
+
+    if mesh.is_watertight():
+        volume = mesh.get_volume() * 1e6
+    else:
+        alpha_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, 0.005)
+        while not alpha_mesh.is_watertight():
+            alpha_value += 0.005
+            alpha_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha_value)
+        volume = alpha_mesh.get_volume() * 1e6  
+        mesh = alpha_mesh
+
+    return mesh, volume
+
+
+def read_matrix_json(json_path):
+    if os.path.exists(json_path):
+        with open(json_path) as json_file:
+            data = json.load(json_file)
+            return data
+    else:
+        raise FileNotFoundError(f"Could not locate the given json file [{json_path}]")
+    
+
+## thanks to: https://github.com/isl-org/Open3D/issues/2
+def text_3d(text, pos, direction=None, degree=0.0, font='Ubuntu-R.ttf', font_size=16, density=10):
+    """
+    Generate a 3D text point cloud used for visualization.
+    :param text: content of the text
+    :param pos: 3D xyz position of the text upper left corner
+    :param direction: 3D normalized direction of where the text faces
+    :param degree: in plane rotation of text
+    :param font: Name of the font - change it according to your system
+    :param font_size: size of the font
+    :return: o3d.geoemtry.PointCloud object
+    """
+    if direction is None:
+        direction = (0., 0., 1.)
+
+    from PIL import Image, ImageFont, ImageDraw
+    from pyquaternion import Quaternion
+
+    font_obj = ImageFont.truetype(font, font_size * density)
+    left, top, right, bottom = font_obj.getbbox(text)
+    text_width = (right - left)
+    text_height = (bottom - top) + 20
+    font_dim = (text_width, text_height)
+
+    img = Image.new('RGB', font_dim, color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.text((0, 0), text, font=font_obj, fill=(0, 0, 0))
+    img = np.asarray(img)
+    img_mask = img[:, :, 0] < 128
+    indices = np.indices([*img.shape[0:2], 1])[:, img_mask, 0].reshape(3, -1).T
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.colors = o3d.utility.Vector3dVector(img[img_mask, :].astype(float) / 255.0)
+    pcd.points = o3d.utility.Vector3dVector(indices / 1000 / density)
+
+    raxis = np.cross([0.0, 0.0, 1.0], direction)
+    if np.linalg.norm(raxis) < 1e-6:
+        raxis = (0.0, 0.0, 1.0)
+    trans = (Quaternion(axis=raxis, radians=np.arccos(direction[2])) *
+             Quaternion(axis=direction, degrees=degree)).transformation_matrix
+    trans[0:3, 3] = np.asarray(pos)
+    pcd.transform(trans)
+
+    return pcd
