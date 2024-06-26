@@ -43,7 +43,7 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error
 
 
-def main_function(decoder, pretrain, cfg, latent_size, visualize):
+def main_function(decoder, pretrain, cfg, latent_size):
     torch.manual_seed(133)
     np.random.seed(133)
     
@@ -51,6 +51,7 @@ def main_function(decoder, pretrain, cfg, latent_size, visualize):
     columns = ['potato_id',
                 'frame_id',
                 'vertical_pos',
+                'cultivar',
                 'weight_g',
                 'gt_volume_ml',
                 'sfm_volume_ml',
@@ -146,6 +147,14 @@ def main_function(decoder, pretrain, cfg, latent_size, visualize):
 
             latent = encoder(encoder_input)
 
+            # save the latent vector for further inspection
+            latent_save = latent.detach().to('cpu').squeeze()
+            save_path = os.path.join(os.path.dirname(pretrain), "encoder")
+            if save_path is not None:
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
+            torch.save(latent_save, os.path.join(save_path, item['frame_id'][0] + ".pth"))
+
             grid_3d = Grid3D(grid_density, device, precision, bbox=box)
             deepsdf_input = torch.cat([latent.expand(grid_3d.points.size(0), -1),
                                         grid_3d.points], dim=1).to(latent.device, latent.dtype)
@@ -178,6 +187,7 @@ def main_function(decoder, pretrain, cfg, latent_size, visualize):
                 'potato_id': item['fruit_id'][0],
                 'frame_id': item['frame_id'][0],
                 'vertical_pos': int(item['frame_id'][0].split("_")[-1]),
+                'cultivar': df.loc[df['label'] == item['fruit_id'][0], 'cultivar'].values[0],
                 'weight_g': df.loc[df['label'] == item['fruit_id'][0], 'weight_g_inctack'].values[0],
                 'gt_volume_ml': df.loc[df['label'] == item['fruit_id'][0], 'volume_ml'].values[0],
                 'sfm_volume_ml': df.loc[df['label'] == item['fruit_id'][0], 'volume_metashape'].values[0],
@@ -198,12 +208,38 @@ def main_function(decoder, pretrain, cfg, latent_size, visualize):
                                 [250, 300], [300, 350], [350, 400], [400, 450], 
                                 [450, 500], [500, 550], [550, 600], [600, 650], 
                                 [650, 720]]
-            
             for start, end in analysis_values:
-                subset_df = save_df[(save_df['vertical_pos'] >= start) & (save_df['vertical_pos'] <= end)]
+                subset_df = save_df[(save_df['vertical_pos'] >= start) & (save_df['vertical_pos'] < end)]
                 filtered_subset_df = subset_df[subset_df['mesh_volume_ml'] != 0]
                 subset_rmse_volume = mean_squared_error(filtered_subset_df['sfm_volume_ml'].values, filtered_subset_df['mesh_volume_ml'].values, squared=False)
-                print(f"RMSE volume: {round(subset_rmse_volume, 1)} between {start}-{end} pixels")
+                avg_cd = sum(subset_df['chamfer_distance'].values) / len(subset_df['chamfer_distance'].values)
+                avg_p = sum(subset_df['precision'].values) / len(subset_df['precision'].values)
+                avg_r = sum(subset_df['recall'].values) / len(subset_df['recall'].values)
+                avg_f1 = sum(subset_df['f1'].values) / len(subset_df['f1'].values)
+                print(f"Between {start}-{end} pixels ({len(filtered_subset_df)}): RMSE volume: {round(subset_rmse_volume, 1)}, CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
+
+            print("")
+            analysis_values = [[0, 100], [100, 150], [150, 200], [200, 500]]
+            for start, end in analysis_values:
+                subset_df = save_df[(save_df['sfm_volume_ml'] >= start) & (save_df['sfm_volume_ml'] < end)]
+                filtered_subset_df = subset_df[subset_df['mesh_volume_ml'] != 0]
+                subset_rmse_volume = mean_squared_error(filtered_subset_df['sfm_volume_ml'].values, filtered_subset_df['mesh_volume_ml'].values, squared=False)
+                avg_cd = sum(subset_df['chamfer_distance'].values) / len(subset_df['chamfer_distance'].values)
+                avg_p = sum(subset_df['precision'].values) / len(subset_df['precision'].values)
+                avg_r = sum(subset_df['recall'].values) / len(subset_df['recall'].values)
+                avg_f1 = sum(subset_df['f1'].values) / len(subset_df['f1'].values)
+                print(f"Between {start}-{end} ml ({len(filtered_subset_df)}): RMSE volume: {round(subset_rmse_volume, 1)}, CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
+
+            print("")
+            for cultivar in ["Sayaka", "Kitahime", "Corolle"]:
+                subset_cultivar = save_df[(save_df['cultivar'] == cultivar)]
+                filtered_subset_cultivar = subset_cultivar[subset_cultivar['mesh_volume_ml'] != 0]
+                subset_rmse_cultivar = mean_squared_error(filtered_subset_cultivar['sfm_volume_ml'].values, filtered_subset_cultivar['mesh_volume_ml'].values, squared=False)
+                avg_cd = sum(subset_cultivar['chamfer_distance'].values) / len(subset_cultivar['chamfer_distance'].values)
+                avg_p = sum(subset_cultivar['precision'].values) / len(subset_cultivar['precision'].values)
+                avg_r = sum(subset_cultivar['recall'].values) / len(subset_cultivar['recall'].values)
+                avg_f1 = sum(subset_cultivar['f1'].values) / len(subset_cultivar['f1'].values)
+                print(f"{cultivar} ({len(filtered_subset_cultivar)}): RMSE volume: {round(subset_rmse_cultivar, 1)}, CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
 
             filtered_mesh = save_df[save_df['mesh_volume_ml'] != 0]
             rmse_volume = mean_squared_error(filtered_mesh['sfm_volume_ml'].values, filtered_mesh['mesh_volume_ml'].values, squared=False)
@@ -257,12 +293,6 @@ if __name__ == "__main__":
         default="500",
         help="The checkpoint weights to use. This should be a number indicated an epoch",
     )
-    arg_parser.add_argument(
-        "--visualize",
-        dest="visualize",
-	    action='store_true',
-        help="Visualize the prediction output with chamfer distances",
-    )
 
     deep_sdf.add_common_args(arg_parser)
 
@@ -286,5 +316,4 @@ if __name__ == "__main__":
     main_function(decoder=decoder,
                   pretrain=pretrain_path,
                   cfg=args.cfg,
-                  latent_size=latent_size,
-                  visualize=args.visualize)
+                  latent_size=latent_size)

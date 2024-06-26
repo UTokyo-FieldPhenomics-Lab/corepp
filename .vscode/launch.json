@@ -144,8 +144,12 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--experiment", "./deepsdf/experiments/potato/",
-                "--checkpoint_decoder", "500",
+                "--experiments", "./deepsdf/experiments/potato_8/", "./deepsdf/experiments/potato_16/", "./deepsdf/experiments/potato_32/", "./deepsdf/experiments/potato_64/", "./deepsdf/experiments/potato_128/", "./deepsdf/experiments/potato_256/",
+                "--checkpoints_decoder", "480", "330", "130", "250", "450", "550",
+                "--split", "./deepsdf/experiments/splits/potato_test.json",
+                "--latent_names", "5R2-3_374", "R12-8_373",
+                "--transformations", "[0, 0, 0]", "[0, -0.15, 0]", "[0, -0.3, 0]", "[0, -0.45, 0]", "[0, -0.6, 0]", "[0, -0.75, 0]",
+                "--colors", "[1, 0, 0]", "[0, 0, 1]", "[0, 1, 0]", "[1, 0.706, 0]", "[1, 0 , 0.706]", "[0, 0.706, 1]"
             ]
         },
         {

@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import os
+import glob
+import ast
 
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms.transforms import ToTensor, Compose, Resize
@@ -28,6 +30,7 @@ import networks.utils as net_utils
 
 import open3d as o3d
 import numpy as np
+from utils import sdf2mesh_cuda
 
 import time
 import json
@@ -143,25 +146,42 @@ def sdf2mesh(pred_sdf, voxel_size):
     mesh.triangles = o3d.utility.Vector3iVector(faces)
     return mesh
 
-def main_function(decoder, latent_size):
-
-    # some variables that will be later added to a config
+def main_function(experiment_directory, split_filename, decoder, latent_names, transformation, color, geometries):
     device = 'cuda'
-    latent_trained = '/home/pieter/shape_completion/deepsdf/experiments/potato/LatentCodes/latest.pth'
-    latents = torch.load(latent_trained)['latent_codes']['weight']
+    search_pattern = os.path.join(experiment_directory, '**', 'Reconstructions', '**', 'Codes', '**', 'encoder', '**', '*.pth')
+    pth_files = glob.glob(search_pattern, recursive=True)
 
+    with open(split_filename, "r") as f:
+        split = json.load(f)
+
+    split_list = []
+    for _, value in split.items():
+        if isinstance(value, dict):
+            nested_value = next(iter(value.values()))  # Get the first (and only) value in the inner dictionary
+            if isinstance(nested_value, list):
+                split_list = nested_value
+                break
+
+    latents = []
+    tuber_names = []
+    frame_names = []
+    for pth_file in pth_files:
+        tuber_name = os.path.splitext(os.path.basename(pth_file))[0].split("_")[0]
+        if tuber_name in split_list:
+            latent = torch.load(pth_file)
+            latent_detach = latent.detach().to('cpu').squeeze()
+            latents.append(latent_detach)
+            tuber_names.append(tuber_name)
+            frame_names.append(os.path.splitext(os.path.basename(pth_file))[0])
+    latents = torch.vstack(latents)
+
+    idx1 = frame_names.index(latent_names[0])
+    idx2 = frame_names.index(latent_names[1])
+
+    l1 = latents[idx1]
+    l2 = latents[idx2]
 
     torch.set_printoptions(linewidth=500, sci_mode=False)
-    # for l in latents:
-    #     print(torch.linalg.norm(l))
-
-    # import ipdb;ipdb.set_trace()
-    i = torch.randint(0,len(latents), (1,))
-    j = torch.randint(0,len(latents), (1,))
-    # import ipdb;ipdb.set_trace()
-
-    l1 = latents[i]
-    l2 = latents[j]
 
     interpolated  = np.linspace(l1, l2, num=7)
 
@@ -171,7 +191,7 @@ def main_function(decoder, latent_size):
            'zmin': -0.07712149275362304, 'zmax': 0.07712149275362304}
 
     # creating variables for 3d grid for diff SDF renderer
-    grid_density = 40
+    grid_density = 20
     precision = torch.float32
 
     ##############################
@@ -180,7 +200,9 @@ def main_function(decoder, latent_size):
 
     decoder.to(device)
 
-    geometries = []
+    print("")
+    print(experiment_directory)
+    
     for idx, l in enumerate(interpolated):
 
         l = torch.from_numpy(l).to(device)
@@ -191,28 +213,31 @@ def main_function(decoder, latent_size):
                                     grid_3d.points],dim=1).to(l.device, l.dtype)
 
         pred_sdf = decoder(deepsdf_input)
-        # print('min-max: ', torch.min(pred_sdf), torch.max(pred_sdf))
-
-        inference_time = time.time() - start
-        # print("inference_time", inference_time)
         
         start = time.time()
         voxel_size = (box['xmax'] - box['xmin'])/grid_density
-        pred_mesh = sdf2mesh(pred_sdf, voxel_size)
-        pred_mesh = pred_mesh.filter_smooth_simple(number_of_iterations=5)
-        voxel_size = max(pred_mesh.get_max_bound() - pred_mesh.get_min_bound()) / 16
-        pred_mesh = pred_mesh.simplify_vertex_clustering(
-            voxel_size=voxel_size,
-            contraction=o3d.geometry.SimplificationContraction.Average)
-        # import ipdb;ipdb.set_trace()
-        lset =  o3d.geometry.LineSet().create_from_triangle_mesh(pred_mesh)
-        marching_time = time.time() - start
-        # print("marching_time", marching_time)
+        
+        try:
+            pred_mesh_or = sdf2mesh_cuda(pred_sdf, grid_3d.points, t=0.0)
+            pred_mesh = pred_mesh_or.filter_smooth_simple(number_of_iterations=5)
+            voxel_size = max(pred_mesh.get_max_bound() - pred_mesh.get_min_bound()) / 16
+            pred_mesh = pred_mesh.simplify_vertex_clustering(
+                voxel_size=voxel_size,
+                contraction=o3d.geometry.SimplificationContraction.Average)
 
-        t = np.array([0.2,0,0]) * idx
-        geometries.append(lset.translate(t)) # translate 
+            t1 = np.array([0.1, 0, 0]) * idx
+            t2 = np.array(transformation)
 
-    o3d.visualization.draw_geometries(geometries)
+            pred_mesh_t1 = pred_mesh_or.translate(t1)
+            pred_mesh_t2 = pred_mesh_t1.translate(t2)
+            pred_mesh_t2.paint_uniform_color(color)
+            
+            print(f"Volume (ml): {round(pred_mesh_or.get_volume()*1e6, 1)}")
+            geometries.append(pred_mesh_t2)
+        except:
+            pass
+
+    return geometries 
 
 if __name__ == "__main__":
 
@@ -220,20 +245,55 @@ if __name__ == "__main__":
 
     arg_parser = argparse.ArgumentParser(description="shape completion main file, assume a pretrained deepsdf model")
     arg_parser.add_argument(
-        "--experiment",
+        "--experiments",
         "-e",
         dest="experiment_directory",
+        nargs='+',
+        type=str,
         required=True,
         help="The experiment directory. This directory should include "
         + "experiment specifications in 'specs.json', and logging will be "
         + "done in this directory as well.",
     )
     arg_parser.add_argument(
-        "--checkpoint_decoder",
+        "--checkpoints_decoder",
         "-c",
         dest="checkpoint",
         default="3500",
+        nargs='+',
+        type=str,
         help="The checkpoint weights to use. This should be a number indicated an epoch",
+    )
+    arg_parser.add_argument(
+        "--split",
+        "-s",
+        dest="split_filename",
+        required=True,
+        help="The split to reconstruct.",
+    )
+    arg_parser.add_argument(
+        "--latent_names",
+        "-ln",
+        dest="latent_names",
+        nargs='+',
+        type=str,
+        required=True,
+    )
+    arg_parser.add_argument(
+        "--transformations",
+        "-t",
+        dest="transformations",
+        nargs='+',
+        type=str,
+        required=True
+    )
+    arg_parser.add_argument(
+        "--colors",
+        "-cl",
+        dest="colors",
+        nargs='+',
+        type=str,
+        required=True
     )
 
 
@@ -244,14 +304,18 @@ if __name__ == "__main__":
     deep_sdf.configure_logging(args)
 
     # loading deepsdf model
-    specs = ws.load_experiment_specifications(args.experiment_directory)
-    latent_size = specs["CodeLength"]
-    arch = __import__("deepsdf.networks." + specs["NetworkArch"], fromlist=["Decoder"])
-    decoder = arch.Decoder(latent_size, **specs["NetworkSpecs"]).cuda()
+    geometries = []
+    for experiment, checkpoint, transformation, color in zip(args.experiment_directory, args.checkpoint, args.transformations, args.colors):
+        specs = ws.load_experiment_specifications(experiment)
+        latent_size = specs["CodeLength"]
+        arch = __import__("deepsdf.networks." + specs["NetworkArch"], fromlist=["Decoder"])
+        decoder = arch.Decoder(latent_size, **specs["NetworkSpecs"]).cuda()
 
-    path = os.path.join(args.experiment_directory, 'ModelParameters', args.checkpoint) + '.pth' 
-    model_state = net_utils.load_without_parallel(torch.load(path))
-    decoder.load_state_dict(model_state)
-    decoder = net_utils.set_require_grad(decoder, False)
+        path = os.path.join(experiment, 'ModelParameters', checkpoint) + '.pth' 
+        model_state = net_utils.load_without_parallel(torch.load(path))
+        decoder.load_state_dict(model_state)
+        decoder = net_utils.set_require_grad(decoder, False)
 
-    main_function(decoder, latent_size)
+        geometries = main_function(experiment, args.split_filename, decoder, args.latent_names, ast.literal_eval(transformation), ast.literal_eval(color), geometries)
+
+    o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True)
