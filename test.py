@@ -224,22 +224,24 @@ def main_function(decoder, pretrain, cfg, latent_size):
                 subset_df = save_df[(save_df['sfm_volume_ml'] >= start) & (save_df['sfm_volume_ml'] < end)]
                 filtered_subset_df = subset_df[subset_df['mesh_volume_ml'] != 0]
                 subset_rmse_volume = mean_squared_error(filtered_subset_df['sfm_volume_ml'].values, filtered_subset_df['mesh_volume_ml'].values, squared=False)
+                percent_offset_volume = np.average((abs(filtered_subset_df['sfm_volume_ml'].values - filtered_subset_df['mesh_volume_ml'].values) / filtered_subset_df['sfm_volume_ml'].values) * 100)
                 avg_cd = sum(subset_df['chamfer_distance'].values) / len(subset_df['chamfer_distance'].values)
                 avg_p = sum(subset_df['precision'].values) / len(subset_df['precision'].values)
                 avg_r = sum(subset_df['recall'].values) / len(subset_df['recall'].values)
                 avg_f1 = sum(subset_df['f1'].values) / len(subset_df['f1'].values)
-                print(f"Between {start}-{end} ml ({len(filtered_subset_df)}): RMSE volume: {round(subset_rmse_volume, 1)}, CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
+                print(f"Between {start}-{end} ml ({len(filtered_subset_df)}): RMSE volume: {round(subset_rmse_volume, 1)} ({round(percent_offset_volume, 1)}%), CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
 
             print("")
             for cultivar in ["Sayaka", "Kitahime", "Corolle"]:
                 subset_cultivar = save_df[(save_df['cultivar'] == cultivar)]
                 filtered_subset_cultivar = subset_cultivar[subset_cultivar['mesh_volume_ml'] != 0]
                 subset_rmse_cultivar = mean_squared_error(filtered_subset_cultivar['sfm_volume_ml'].values, filtered_subset_cultivar['mesh_volume_ml'].values, squared=False)
+                percent_offset_volume = np.average((abs(filtered_subset_cultivar['sfm_volume_ml'].values - filtered_subset_cultivar['mesh_volume_ml'].values) / filtered_subset_cultivar['sfm_volume_ml'].values) * 100)
                 avg_cd = sum(subset_cultivar['chamfer_distance'].values) / len(subset_cultivar['chamfer_distance'].values)
                 avg_p = sum(subset_cultivar['precision'].values) / len(subset_cultivar['precision'].values)
                 avg_r = sum(subset_cultivar['recall'].values) / len(subset_cultivar['recall'].values)
                 avg_f1 = sum(subset_cultivar['f1'].values) / len(subset_cultivar['f1'].values)
-                print(f"{cultivar} ({len(filtered_subset_cultivar)}): RMSE volume: {round(subset_rmse_cultivar, 1)}, CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
+                print(f"{cultivar} ({len(filtered_subset_cultivar)}): RMSE volume: {round(subset_rmse_cultivar, 1)} ({round(percent_offset_volume, 1)}%), CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
 
             filtered_mesh = save_df[save_df['mesh_volume_ml'] != 0]
             rmse_volume = mean_squared_error(filtered_mesh['sfm_volume_ml'].values, filtered_mesh['mesh_volume_ml'].values, squared=False)
