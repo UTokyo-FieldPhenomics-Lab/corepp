@@ -1,5 +1,7 @@
 # CoRe++: High-Throughput 3D Shape Completion of RGB-D Images
 
+![CoRe++](./data/git_promo.gif)
+
 ### How to Cite
 
 If you use this code in your research, please cite our
@@ -42,3 +44,8 @@ To test DeepSDF results:
 * `python reconstruct_deep_sdf.py -e ./deepsdf/experiments/<name> -d ./data/<name> -s ./deepsdf/experiments/splits/<name>.json`
 
 the framework expect a specific structure, read the instruction in the `deepsdf` folder. 
+
+### Acknowledgements
+CoRe++ is the updated version of Federico Magistri's original CoRe implementation: <br/>
+https://github.com/magistri/shape_completion<br/>
+https://www.ipb.uni-bonn.de/wp-content/papercite-data/pdf/magistri2022ral-iros.pdf<br/><br/>
