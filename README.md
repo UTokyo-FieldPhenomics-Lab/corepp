@@ -1,6 +1,6 @@
 # CoRe++: High-Throughput 3D Shape Completion of RGB-D Images
 
-![CoRe++](./data/git_promo.gif)
+![CoRe++](data/git_promo.gif)
 
 ### How to Cite
 
