@@ -1,4 +1,4 @@
-# Shape Completion
+# CoRe++: High-Throughput 3D Shape Completion of RGB-D Images
 
 ### How to Cite
 
