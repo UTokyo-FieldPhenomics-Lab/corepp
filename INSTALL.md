@@ -10,9 +10,9 @@ Software: Pytorch 2.1.0, torchvision 0.16.0, Python 3.10, CUDA 12.1 <br/> <br/>
 - conda create --name corepp python=3.10 pip
 - conda activate corepp <br/> <br/>
 
-**3) Download the code repository, and switch to potato branch:**
-- git clone https://github.com/magistri/shape_completion.git 
-- git checkout potato <br/> <br/>
+**3) Download the code repository:**
+- git clone https://github.com/UTokyo-FieldPhenomics-Lab/corepp.git 
+- cd corepp <br/> <br/>
 
 **4) Install the required software libraries (in the corepp virtual environment, using the terminal):**
 - pip install -U torch==2.1.0 torchvision==0.16.0 -f https://download.pytorch.org/whl/cu121/torch_stable.html
