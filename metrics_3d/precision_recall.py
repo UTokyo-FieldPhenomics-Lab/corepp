@@ -53,13 +53,13 @@ class PrecisionRecall(Metrics3D):
 
     def compute_at_threshold(self, threshold):
         t = self.find_nearest_threshold(threshold)
-        # print('computing metrics at threshold:', t)
+        print('computing metrics at threshold:', t)
         pr = sum(self.pr_dict[t]) / len(self.pr_dict[t])
         re = sum(self.re_dict[t]) / len(self.re_dict[t])
         f1 = sum(self.f1_dict[t]) / len(self.f1_dict[t])
-        # print('precision: {}'.format(pr))
-        # print('recall: {}'.format(re))
-        # print('fscore: {}'.format(f1))
+        print('precision: {}'.format(pr))
+        print('recall: {}'.format(re))
+        print('fscore: {}'.format(f1))
         return pr, re, f1, t
 
     def compute_auc(self):

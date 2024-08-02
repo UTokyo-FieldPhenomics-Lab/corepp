@@ -1,9 +1,9 @@
 {
     "species" : "potato",
-    "data_dir" : "/home/pieter/shape_completion/data/potato/",
-    "checkpoint_dir" : "/home/pieter/shape_completion/potato/logs/checkpoints/",
+    "data_dir" : "/home/pieter/corepp/data/potato/",
+    "checkpoint_dir" : "/home/pieter/corepp/potato/logs/checkpoints/",
     "checkpoint_file": "_erfnet_best_model.pt",
-    "log_dir": "/home/pieter/shape_completion/potato/logs/runs/",
+    "log_dir": "/home/pieter/corepp/potato/logs/runs/",
     "encoder" : "erfnet",
     "detection_input" : "mask",
     "normalize_depth" : true,
