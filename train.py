@@ -35,6 +35,12 @@ cd = chamfer_distance.ChamferDistance()
 from sklearn.metrics import mean_squared_error
 
 
+def check_direxcist(dir):
+    if dir is not None:
+        if not os.path.exists(dir):
+            os.makedirs(dir)  # make new folder
+
+
 def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, update_decoder):
 
     if DEBUG:
@@ -47,6 +53,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
     with open(cfg) as json_file:
         param = json.load(json_file)
 
+    check_direxcist(param["checkpoint_dir"])
     device = 'cuda'
     shuffle = True
     last_rmse = np.inf
@@ -121,7 +128,7 @@ def main_function(decoder, pretrain, cfg, latent_size, trunc_val, overfit, updat
 
     # import ipdb; ipdb.set_trace()
     n_iter = 0  # used for tensorboard
-    df = pd.read_csv("/mnt/data/PieterBlok/Potato/Data/ground_truth_measurements/ground_truth.csv")
+    df = pd.read_csv("./data/3DPotatoTwinDemo/ground_truth.csv")
 
     for e in range(param["epoch"]):
         for idx, item in enumerate(iter(dataset)):

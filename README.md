@@ -52,11 +52,11 @@ Our dataset will be made public as soon as our manuscript is published.
 10. Change the file paths in **configs/super3d.json** such that they correspond to your file paths
 11. Train the encoder
     ```python
-    python train.py --src ./configs/super3d.json --experiment ./deepsdf/experiments/potato/ --checkpoint_decoder 500
+    python train.py --cfg ./configs/super3d.json --experiment ./deepsdf/experiments/potato/ --checkpoint_decoder 500
     ```
 12. Test the encoder
     ```python
-    python train.py --src ./configs/super3d.json --experiment ./deepsdf/experiments/potato/ --checkpoint_decoder 500
+    python test.py --cfg ./configs/super3d.json --experiment ./deepsdf/experiments/potato/ --checkpoint_decoder 500
     ```
 <br/>
 

@@ -47,7 +47,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
     torch.manual_seed(133)
     np.random.seed(133)
     
-    df = pd.read_csv("/mnt/data/PieterBlok/Potato/Data/ground_truth_measurements/ground_truth.csv")
+    df = pd.read_csv("./data/3DPotatoTwinDemo/ground_truth.csv")
     columns = ['potato_id',
                 'frame_id',
                 'vertical_pos',
@@ -177,11 +177,11 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
             cd.reset()
             cd.update(gt, mesh)
-            chamfer_distance = cd.compute()
+            chamfer_distance = cd.compute(print_output=False)
 
             pr.reset()
             pr.update(gt, mesh)
-            prec, rec, f1, _ = pr.compute_at_threshold(0.005)
+            prec, rec, f1, _ = pr.compute_at_threshold(0.005, print_output=False)
 
             cur_data = {
                 'potato_id': item['fruit_id'][0],
@@ -202,71 +202,7 @@ def main_function(decoder, pretrain, cfg, latent_size):
 
 
         print(f"Average time for 3D shape completion, including postprocessing: {mean(exec_time)*1e3:.1f} ms")
-
-        try:
-            analysis_values = [[0, 100], [100, 150], [150, 200], [200, 250], 
-                                [250, 300], [300, 350], [350, 400], [400, 450], 
-                                [450, 500], [500, 550], [550, 600], [600, 650], 
-                                [650, 720]]
-            for start, end in analysis_values:
-                subset_df = save_df[(save_df['vertical_pos'] >= start) & (save_df['vertical_pos'] < end)]
-                filtered_subset_df = subset_df[subset_df['mesh_volume_ml'] != 0]
-                subset_rmse_volume = mean_squared_error(filtered_subset_df['sfm_volume_ml'].values, filtered_subset_df['mesh_volume_ml'].values, squared=False)
-                avg_cd = sum(subset_df['chamfer_distance'].values) / len(subset_df['chamfer_distance'].values)
-                avg_p = sum(subset_df['precision'].values) / len(subset_df['precision'].values)
-                avg_r = sum(subset_df['recall'].values) / len(subset_df['recall'].values)
-                avg_f1 = sum(subset_df['f1'].values) / len(subset_df['f1'].values)
-                print(f"Between {start}-{end} pixels ({len(filtered_subset_df)}): RMSE volume: {round(subset_rmse_volume, 1)}, CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
-
-            print("")
-            analysis_values = [[0, 100], [100, 150], [150, 200], [200, 500]]
-            for start, end in analysis_values:
-                subset_df = save_df[(save_df['sfm_volume_ml'] >= start) & (save_df['sfm_volume_ml'] < end)]
-                filtered_subset_df = subset_df[subset_df['mesh_volume_ml'] != 0]
-                subset_rmse_volume = mean_squared_error(filtered_subset_df['sfm_volume_ml'].values, filtered_subset_df['mesh_volume_ml'].values, squared=False)
-                percent_offset_volume = np.average((abs(filtered_subset_df['sfm_volume_ml'].values - filtered_subset_df['mesh_volume_ml'].values) / filtered_subset_df['sfm_volume_ml'].values) * 100)
-                avg_cd = sum(subset_df['chamfer_distance'].values) / len(subset_df['chamfer_distance'].values)
-                avg_p = sum(subset_df['precision'].values) / len(subset_df['precision'].values)
-                avg_r = sum(subset_df['recall'].values) / len(subset_df['recall'].values)
-                avg_f1 = sum(subset_df['f1'].values) / len(subset_df['f1'].values)
-                print(f"Between {start}-{end} ml ({len(filtered_subset_df)}): RMSE volume: {round(subset_rmse_volume, 1)} ({round(percent_offset_volume, 1)}%), CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
-
-            print("")
-            for cultivar in ["Sayaka", "Kitahime", "Corolle"]:
-                subset_cultivar = save_df[(save_df['cultivar'] == cultivar)]
-                filtered_subset_cultivar = subset_cultivar[subset_cultivar['mesh_volume_ml'] != 0]
-                subset_rmse_cultivar = mean_squared_error(filtered_subset_cultivar['sfm_volume_ml'].values, filtered_subset_cultivar['mesh_volume_ml'].values, squared=False)
-                percent_offset_volume = np.average((abs(filtered_subset_cultivar['sfm_volume_ml'].values - filtered_subset_cultivar['mesh_volume_ml'].values) / filtered_subset_cultivar['sfm_volume_ml'].values) * 100)
-                avg_cd = sum(subset_cultivar['chamfer_distance'].values) / len(subset_cultivar['chamfer_distance'].values)
-                avg_p = sum(subset_cultivar['precision'].values) / len(subset_cultivar['precision'].values)
-                avg_r = sum(subset_cultivar['recall'].values) / len(subset_cultivar['recall'].values)
-                avg_f1 = sum(subset_cultivar['f1'].values) / len(subset_cultivar['f1'].values)
-                print(f"{cultivar} ({len(filtered_subset_cultivar)}): RMSE volume: {round(subset_rmse_cultivar, 1)} ({round(percent_offset_volume, 1)}%), CD: {round(avg_cd, 6)}, P: {round(avg_p, 1)}, R: {round(avg_r, 1)}, F1: {round(avg_f1, 1)}")
-
-            filtered_mesh = save_df[save_df['mesh_volume_ml'] != 0]
-            rmse_volume = mean_squared_error(filtered_mesh['sfm_volume_ml'].values, filtered_mesh['mesh_volume_ml'].values, squared=False)
-            avg_cd = sum(save_df['chamfer_distance'].values) / len(save_df['chamfer_distance'].values)
-            avg_p = sum(save_df['precision'].values) / len(save_df['precision'].values)
-            avg_r = sum(save_df['recall'].values) / len(save_df['recall'].values)
-            avg_f1 = sum(save_df['f1'].values) / len(save_df['f1'].values)
-
-            cur_data = {
-                    'potato_id': "",
-                    'frame_id': "",
-                    'weight_g': "",
-                    'gt_volume_ml': "",
-                    'sfm_volume_ml': "",
-                    'mesh_volume_ml': round(rmse_volume, 1),
-                    'chamfer_distance': round(avg_cd, 6),
-                    'precision': round(avg_p, 1),
-                    'recall': round(avg_r, 1),
-                    'f1': round(avg_f1, 1)
-                    }
-            
-            save_df = pd.concat([save_df, pd.DataFrame([cur_data])], ignore_index=True)
-            save_df.to_csv("shape_completion_results.csv", mode='w+', index=False)
-        except:
-            pass
+        print("Results saved in: " + os.getcwd() + "/shape_completion_results.csv")
 
 if __name__ == "__main__":
 

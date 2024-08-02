@@ -27,7 +27,8 @@ class ChamferDistance(Metrics3D):
     def reset(self):
         self.cd_array = []
 
-    def compute(self):
+    def compute(self, print_output=True):
         cd = sum(self.cd_array) / len(self.cd_array)
-        print('chamfer distance: {}'.format(cd))
+        if print_output:
+            print('chamfer distance: {}'.format(cd))
         return cd
