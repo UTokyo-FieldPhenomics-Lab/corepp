@@ -8,7 +8,11 @@
 <br/><br/>
 
 ### Dataset
-Our dataset will be made public as soon as our manuscript is published.
+[3DPotatoTwin](https://drive.google.com/drive/folders/1o9st4S7O64a-1lwKphe-MEzLhcHZUtpE?usp=sharing)
+<br/><br/>
+
+### Network weights
+[CoRe++ weights](https://drive.google.com/drive/folders/1-i4XYDwQbiJx2x836lqgGCkdotlE7sNC?usp=sharing)
 <br/><br/>
 
 ### Instructions
@@ -60,7 +64,24 @@ Our dataset will be made public as soon as our manuscript is published.
     ```
 <br/>
 
+### Citation
+Refer to our research article: 
+```BibTeX
+@article{BLOK2025109673,
+    title = {High-throughput 3D shape completion of potato tubers on a harvester},
+    author = {Pieter M. Blok and Federico Magistri and Cyrill Stachniss and Haozhou Wang and James Burridge and Wei Guo},
+    journal = {Computers and Electronics in Agriculture},
+    volume = {228},
+    pages = {109673},
+    year = {2025},
+    issn = {0168-1699},
+    doi = {https://doi.org/10.1016/j.compag.2024.109673},
+    url = {https://www.sciencedirect.com/science/article/pii/S0168169924010640},
+    keywords = {Potato, Deep learning, RGB-D, 3D shape completion, Structure-from-Motion},
+}
+```
+<br/>
+
 ### Acknowledgements
 CoRe++ is the updated version of Federico Magistri's original CoRe implementation: <br/>
-https://github.com/magistri/shape_completion<br/>
 https://www.ipb.uni-bonn.de/wp-content/papercite-data/pdf/magistri2022ral-iros.pdf
