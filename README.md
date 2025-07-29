@@ -8,7 +8,7 @@
 <br/><br/>
 
 ### Dataset
-[3DPotatoTwin](https://drive.google.com/drive/folders/1o9st4S7O64a-1lwKphe-MEzLhcHZUtpE?usp=sharing)
+[3DPotatoTwin](https://huggingface.co/datasets/UTokyo-FieldPhenomics-Lab/3DPotatoTwin)
 <br/><br/>
 
 ### Network weights
